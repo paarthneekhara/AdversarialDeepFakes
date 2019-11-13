@@ -22,8 +22,17 @@ def return_pytorch04_xception(pretrained=True):
         # Load model in torch 0.4+
         model.fc = model.last_linear
         del model.last_linear
-        state_dict = torch.load(
-            '/data2/paarth/faceforensics++_models_subset/xception-b5690688.pth')
+        pos_model_paths = [
+            '/data2/paarth/faceforensics++_models_subset/xception-b5690688.pth',
+            '/home/shehzeen/AdversarialDeepFakes/xception-b5690688.pth'
+            ]
+
+        state_dict = None
+        for model_path in pos_model_paths:
+            if os.path.exists(model_path):
+                state_dict = torch.load(model_path)
+                break
+
         for name, weights in state_dict.items():
             if 'pointwise' in name:
                 state_dict[name] = weights.unsqueeze(-1).unsqueeze(-1)
