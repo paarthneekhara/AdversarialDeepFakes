@@ -1,15 +1,15 @@
 """
-Evaluates a folder of video files or a single file with a xception binary
-classification network.
+Create adversarial video that fools xceptionnet.
 
 Usage:
-python detect_from_video.py
+python attack.py
     -i <folder with video files or path to video file>
     -m <path to model file>
     -o <path to output folder, will write one or multiple output videos there>
 
-Author: Andreas Rössler
+built upon the code by Andreas Rössler for detecting deep fakes.
 """
+
 import os
 import argparse
 from os.path import join
@@ -104,8 +104,32 @@ def un_preprocess_image(image, size):
 
 
 
-def predict_with_model(preprocessed_image, model, post_function=nn.Softmax(dim=1),
-                       cuda=True, processed = False):
+def iterative_fgsm(processed_image, model, cuda = True, max_iter = 100, alpha = 0.0001):
+    
+    iter_no = 0
+    prediction, output, logits = predict_with_model(processed_image, model, cuda=cuda)
+    while ( not ((output[0][0] - output[0][1]) > 0.99 ) ):
+        if iter_no >= max_iter:
+            break
+        
+        image_grad = torch.sign(autograd.grad( output[0][0], processed_image)[0])
+        image_grad.detach()
+        processed_image.detach()
+        new_processed_image = processed_image.clone() + alpha * image_grad.clone()
+
+        del processed_image
+        del image_grad
+        new_processed_image.detach()
+        processed_image = new_processed_image
+        
+        prediction, output, logits = predict_with_model(processed_image, model, cuda=cuda)
+        print("Optimizing", iter_no, prediction)
+        iter_no += 1
+
+    return processed_image
+
+
+def predict_with_model(preprocessed_image, model, post_function=nn.Softmax(dim=1), cuda=True):
     """
     Predicts the label of an input image. Preprocesses the input image and
     casts it to cuda if required
@@ -114,7 +138,7 @@ def predict_with_model(preprocessed_image, model, post_function=nn.Softmax(dim=1
     :param model: torch model with linear layer at the end
     :param post_function: e.g., softmax
     :param cuda: enables cuda, must be the same parameter as the model
-    :return: prediction (1 = fake, 0 = real)
+    :return: prediction (1 = fake, 0 = real), output probs, logits
     """
     
     # Model prediction
@@ -129,8 +153,8 @@ def predict_with_model(preprocessed_image, model, post_function=nn.Softmax(dim=1
     return int(prediction), output, logits
 
 
-def test_full_image_network(video_path, model_path, output_path,
-                            start_frame=0, end_frame=None, cuda=True):
+def create_adversarial_video(video_path, model_path, output_path,
+                            start_frame=0, end_frame=None, cuda=True, showlabel = True):
     """
     Reads a video and evaluates a subset of frames with the a detection network
     that takes in a full frame. Outputs are only given if a face is present
@@ -150,7 +174,7 @@ def test_full_image_network(video_path, model_path, output_path,
 
     video_fn = video_path.split('/')[-1].split('.')[0]+'.avi'
     os.makedirs(output_path, exist_ok=True)
-    fourcc = cv2.VideoWriter_fourcc(*'HFYU')
+    fourcc = cv2.VideoWriter_fourcc(*'HFYU') # Chnaged to HFYU because it is lossless
     fps = reader.get(cv2.CAP_PROP_FPS)
     num_frames = int(reader.get(cv2.CAP_PROP_FRAME_COUNT))
     writer = None
@@ -207,8 +231,6 @@ def test_full_image_network(video_path, model_path, output_path,
             # writer = cv2.VideoWriter(join(output_path, video_fn), 0, 1,
             #                          (height, width)[::-1])
 
-            # writer = cv2.VideoWriter()
-
         # 2. Detect with dlib
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         faces = face_detector(gray, 1)
@@ -221,46 +243,22 @@ def test_full_image_network(video_path, model_path, output_path,
             x, y, size = get_boundingbox(face, width, height)
             cropped_face = image[y:y+size, x:x+size]
 
-            # Actual prediction using our model
-            processed_image = preprocess_image(cropped_face, cuda = cuda)
-            prediction, output, logits = predict_with_model(processed_image, model, cuda=cuda)
-            # ------------------------------------------------------------------
-            iter_no = 0
-            max_attack_iter = 100
-            alpha = 0.0001
-            while ( not ((output[0][0] - output[0][1]) > 0.99 ) ):
-                if iter_no >= max_attack_iter:
-                    break
-                
-                image_grad = torch.sign(autograd.grad( output[0][0], processed_image)[0])
-                image_grad.detach()
-                processed_image.detach()
-                new_processed_image = processed_image.clone() + alpha * image_grad.clone()
-
-                del processed_image
-                del image_grad
-                new_processed_image.detach()
-                processed_image = new_processed_image
-                
-                prediction, output, logits = predict_with_model(processed_image, model, cuda=cuda)
-                print("Optimizing", iter_no, prediction)
-                iter_no += 1
             
-            unpreprocessed_image = un_preprocess_image(processed_image, size)
+            processed_image = preprocess_image(cropped_face, cuda = cuda)
+            
+            # Attack happening here
+            perturbed_image = iterative_fgsm(processed_image, model, cuda)
+            
+            # Undo the processing of xceptionnet
+            unpreprocessed_image = un_preprocess_image(perturbed_image, size)
             image[y:y+size, x:x+size] = unpreprocessed_image
-            # -------------------------------------------------------------------------
+            
 
             cropped_face = image[y:y+size, x:x+size]
-
-            # Actual prediction using our model
             processed_image = preprocess_image(cropped_face, cuda = cuda)
-            prediction, output, logits = predict_with_model(processed_image, model,
-                                                    cuda=cuda)
+            prediction, output, logits = predict_with_model(processed_image, model, cuda=cuda)
 
-            print ("FINAL OUTPUTT>>>>>>>>>>>>>>>>>..", output)
-            # print ("UN PREPROCESSED IMAGE")
-            # print(unpreprocessed_image)
-            # print("*****************************")
+            print (">>>>Prediction for frame no. {}: {}".format(frame_num ,output))
 
 
             # Text and bb
@@ -273,11 +271,12 @@ def test_full_image_network(video_path, model_path, output_path,
             output_list = ['{0:.2f}'.format(float(x)) for x in
                            output.detach().cpu().numpy()[0]]
             
-            # cv2.putText(image, str(output_list)+'=>'+label, (x, y+h+30),
-            #             font_face, font_scale,
-            #             color, thickness, 2)
-            # # draw box over face
-            # cv2.rectangle(image, (x, y), (x + w, y + h), color, 2)
+            if showlabel:
+                cv2.putText(image, str(output_list)+'=>'+label, (x, y+h+30),
+                            font_face, font_scale,
+                            color, thickness, 2)
+                # draw box over face
+                cv2.rectangle(image, (x, y), (x + w, y + h), color, 2)
 
         if frame_num >= end_frame:
             break
@@ -304,13 +303,15 @@ if __name__ == '__main__':
     p.add_argument('--start_frame', type=int, default=0)
     p.add_argument('--end_frame', type=int, default=None)
     p.add_argument('--cuda', action='store_true')
+    p.add_argument('--showlabel', action='store_true') # add face labels in the generated video
+
     args = p.parse_args()
 
     video_path = args.video_path
     if video_path.endswith('.mp4') or video_path.endswith('.avi'):
-        test_full_image_network(**vars(args))
+        create_adversarial_video(**vars(args))
     else:
         videos = os.listdir(video_path)
         for video in videos:
             args.video_path = join(video_path, video)
-            test_full_image_network(**vars(args))
+            create_adversarial_video(**vars(args))
