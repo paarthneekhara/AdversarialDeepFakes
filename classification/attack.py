@@ -24,6 +24,7 @@ from network.models import model_selection
 from dataset.transform import xception_default_data_transforms
 from torch import autograd
 import numpy
+from torchvision import transforms
 
 def get_boundingbox(face, width, height, scale=1.3, minsize=None):
     """
@@ -78,33 +79,15 @@ def preprocess_image(image, cuda=True):
     preprocessed_image.requires_grad = True
     return preprocessed_image
 
-class UnNormalize(object):
-    def __init__(self, mean, std):
-        self.mean = mean
-        self.std = std
-
-    def __call__(self, tensor):
-        """
-        Args:
-            tensor (Tensor): Tensor image of size (C, H, W) to be normalized.
-        Returns:
-            Tensor: Normalized image.
-        """
-        for t, m, s in zip(tensor, self.mean, self.std):
-            t.mul_(s).add_(m)
-            # The normalize code -> t.sub_(m).div_(s)
-        return tensor
-
-from torchvision import transforms
 
 
 def un_preprocess_image(image, size):
     # unnormalize, un-resize
     image.detach()
-    unnorm = UnNormalize([0.5] * 3, [0.5] * 3)
+    unnorm_transform = xception_default_data_transforms['unnormalize']
     new_image = image.squeeze(0)
     new_image.detach()
-    new_image = unnorm(new_image)
+    new_image = unnorm_transform(new_image)
     new_image = new_image.detach().cpu()
 
     undo_transform = transforms.Compose([
@@ -121,7 +104,7 @@ def un_preprocess_image(image, size):
 
 
 
-def predict_with_model(image, model, post_function=nn.Softmax(dim=1),
+def predict_with_model(preprocessed_image, model, post_function=nn.Softmax(dim=1),
                        cuda=True, processed = False):
     """
     Predicts the label of an input image. Preprocesses the input image and
@@ -133,22 +116,17 @@ def predict_with_model(image, model, post_function=nn.Softmax(dim=1),
     :param cuda: enables cuda, must be the same parameter as the model
     :return: prediction (1 = fake, 0 = real)
     """
-    # Preprocess
-    if not processed:
-        preprocessed_image = preprocess_image(image, cuda)
-    else:
-        preprocessed_image = image
-
+    
     # Model prediction
-    output = model(preprocessed_image)
-    output = post_function(output)
+    logits = model(preprocessed_image)
+    output = post_function(logits)
 
     # Cast to desired
     _, prediction = torch.max(output, 1)    # argmax
     prediction = float(prediction.cpu().numpy())
     print ("prediction", prediction)
     print ("output", output)
-    return int(prediction), output, preprocessed_image
+    return int(prediction), output, logits
 
 
 def test_full_image_network(video_path, model_path, output_path,
@@ -183,7 +161,10 @@ def test_full_image_network(video_path, model_path, output_path,
     # Load model
     model, *_ = model_selection(modelname='xception', num_out_classes=2)
     if model_path is not None:
-        model = torch.load(model_path)
+        if not cuda:
+            model = torch.load(model_path, map_location = "cpu")
+        else:
+            model = torch.load(model_path)
         print('Model found in {}'.format(model_path))
     else:
         print('No model found, initializing random model.')
@@ -241,9 +222,8 @@ def test_full_image_network(video_path, model_path, output_path,
             cropped_face = image[y:y+size, x:x+size]
 
             # Actual prediction using our model
-            
-            prediction, output, processed_image = predict_with_model(cropped_face, model,
-                                                    cuda=cuda)
+            processed_image = preprocess_image(cropped_face, cuda = cuda)
+            prediction, output, logits = predict_with_model(processed_image, model, cuda=cuda)
             # ------------------------------------------------------------------
             iter_no = 0
             max_attack_iter = 100
@@ -251,10 +231,8 @@ def test_full_image_network(video_path, model_path, output_path,
             while ( not ((output[0][0] - output[0][1]) > 0.99 ) ):
                 if iter_no >= max_attack_iter:
                     break
-                # print (output[0][0].requires_grad)
-                # print (processed_image.requires_grad)
+                
                 image_grad = torch.sign(autograd.grad( output[0][0], processed_image)[0])
-                # print (image_grad)
                 image_grad.detach()
                 processed_image.detach()
                 new_processed_image = processed_image.clone() + alpha * image_grad.clone()
@@ -263,11 +241,8 @@ def test_full_image_network(video_path, model_path, output_path,
                 del image_grad
                 new_processed_image.detach()
                 processed_image = new_processed_image
-                # print (processed_image.requires_grad)
-                # processed_image.requires_grad = True
-                #  cropped_face.detach()
-                prediction, output, _ = predict_with_model(processed_image, model,
-                                                    cuda=cuda, processed = True)
+                
+                prediction, output, logits = predict_with_model(processed_image, model, cuda=cuda)
                 print("Optimizing", iter_no, prediction)
                 iter_no += 1
             
@@ -278,8 +253,8 @@ def test_full_image_network(video_path, model_path, output_path,
             cropped_face = image[y:y+size, x:x+size]
 
             # Actual prediction using our model
-            
-            prediction, output, processed_image = predict_with_model(cropped_face, model,
+            processed_image = preprocess_image(cropped_face, cuda = cuda)
+            prediction, output, logits = predict_with_model(processed_image, model,
                                                     cuda=cuda)
 
             print ("FINAL OUTPUTT>>>>>>>>>>>>>>>>>..", output)
@@ -297,13 +272,13 @@ def test_full_image_network(video_path, model_path, output_path,
             color = (0, 255, 0) if prediction == 0 else (0, 0, 255)
             output_list = ['{0:.2f}'.format(float(x)) for x in
                            output.detach().cpu().numpy()[0]]
+            
             # cv2.putText(image, str(output_list)+'=>'+label, (x, y+h+30),
             #             font_face, font_scale,
             #             color, thickness, 2)
             # # draw box over face
             # cv2.rectangle(image, (x, y), (x + w, y + h), color, 2)
 
-        # remove me
         if frame_num >= end_frame:
             break
 

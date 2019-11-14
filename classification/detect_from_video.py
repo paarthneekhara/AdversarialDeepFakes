@@ -134,7 +134,10 @@ def test_full_image_network(video_path, model_path, output_path,
     # Load model
     model, *_ = model_selection(modelname='xception', num_out_classes=2)
     if model_path is not None:
-        model = torch.load(model_path)
+        if not cuda:
+            model = torch.load(model_path, map_location = "cpu")
+        else:
+            model = torch.load(model_path)
         print('Model found in {}'.format(model_path))
     else:
         print('No model found, initializing random model.')
