@@ -56,7 +56,7 @@ def get_boundingbox(face, width, height, scale=1.3, minsize=None):
     return x1, y1, size_bb
 
 
-def preprocess_image(image, cuda=True):
+def preprocess_image(image, cuda=True, legacy = False):
     """
     Preprocesses the image such that it can be fed into our network.
     During this process we envoke PIL to cast it into a PIL image.
@@ -69,8 +69,13 @@ def preprocess_image(image, cuda=True):
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     # Preprocess using the preprocessing function used during training and
     # casting it to PIL image
-    
-    preprocess = xception_default_data_transforms['test']
+    if not legacy:
+        # only conver to tensor here, 
+        # other transforms -> resize, normalize differentiable done in predict_from_model func
+        preprocess = xception_default_data_transforms['to_tensor']
+    else:
+        preprocess = xception_default_data_transforms['test']
+
     preprocessed_image = preprocess(pil_image.fromarray(image))
     
     # Add first dimension as the network expects a batch
@@ -84,12 +89,12 @@ def preprocess_image(image, cuda=True):
 
 
 def un_preprocess_image(image, size):
-    # unnormalize, no need to resize here - predictor now accepts non-resized images.
+    """
+    Tensor to PIL image and RGB to BGR
+    """
+    
     image.detach()
-    # unnorm_transform = xception_default_data_transforms['unnormalize']
     new_image = image.squeeze(0)
-    # new_image.detach()
-    # new_image = unnorm_transform(new_image)
     new_image = new_image.detach().cpu()
 
     undo_transform = transforms.Compose([
@@ -148,7 +153,7 @@ def predict_with_model_legacy(image, model, post_function=nn.Softmax(dim=1),
     :return: prediction (1 = fake, 0 = real)
     """
     # Preprocess
-    preprocessed_image = preprocess_image(image, cuda)
+    preprocessed_image = preprocess_image(image, cuda, legacy = True)
 
     # Model prediction
     output = model(preprocessed_image)
@@ -162,8 +167,7 @@ def predict_with_model_legacy(image, model, post_function=nn.Softmax(dim=1),
 
 def predict_with_model(preprocessed_image, model, post_function=nn.Softmax(dim=1), cuda=True):
     """
-    Predicts the label of an input image. Preprocesses the input image and
-    casts it to cuda if required
+    Predicts the label of an input image. Performs resizing and normalization before feeding in image.
 
     :param image: numpy image
     :param model: torch model with linear layer at the end
@@ -175,8 +179,7 @@ def predict_with_model(preprocessed_image, model, post_function=nn.Softmax(dim=1
     # Model prediction
 
     # differentiable resizing: doing resizing here instead of preprocessing
-    resized_image = nn.functional.interpolate(preprocessed_image * 255.0, size = (299, 299), mode = "bilinear", align_corners = True)/255.0
-    
+    resized_image = nn.functional.interpolate(preprocessed_image, size = (299, 299), mode = "bilinear")
     norm_transform = xception_default_data_transforms['normalize']
     normalized_image = norm_transform(resized_image)
     
@@ -303,16 +306,19 @@ def create_adversarial_video(video_path, model_path, output_path,
             print (">>>>Prediction LEGACY for frame no. {}: {}".format(frame_num ,output))
 
             # Text and bb
-            x = face.left()
-            y = face.top()
-            w = face.right() - x
-            h = face.bottom() - y
-            label = 'fake' if prediction == 1 else 'real'
-            color = (0, 255, 0) if prediction == 0 else (0, 0, 255)
-            output_list = ['{0:.2f}'.format(float(x)) for x in
-                           output.detach().cpu().numpy()[0]]
+            
             
             if showlabel:
+                # print a bounding box in the generated video
+                x = face.left()
+                y = face.top()
+                w = face.right() - x
+                h = face.bottom() - y
+                label = 'fake' if prediction == 1 else 'real'
+                color = (0, 255, 0) if prediction == 0 else (0, 0, 255)
+                output_list = ['{0:.2f}'.format(float(x)) for x in
+                               output.detach().cpu().numpy()[0]]
+
                 cv2.putText(image, str(output_list)+'=>'+label, (x, y+h+30),
                             font_face, font_scale,
                             color, thickness, 2)

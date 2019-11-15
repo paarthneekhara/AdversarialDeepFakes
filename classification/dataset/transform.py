@@ -22,6 +22,7 @@ class UnNormalize(object):
             # The normalize code -> t.sub_(m).div_(s)
         return tensor
 
+
 class Normalize(object):
     def __init__(self, mean, std):
         self.mean = mean
@@ -51,12 +52,14 @@ xception_default_data_transforms = {
         transforms.Normalize([0.5] * 3, [0.5] * 3)
     ]),
     'test': transforms.Compose([
-        transforms.ToTensor(),
-        # transforms.Normalize([0.5] * 3, [0.5] * 3)
-    ]),
-    'resize': transforms.Compose([
         transforms.Resize((299, 299)),
-        transforms.ToTensor()
+        transforms.ToTensor(),
+        transforms.Normalize([0.5] * 3, [0.5] * 3)
+    ]),
+
+    # Added these transforms for attack
+    'to_tensor': transforms.Compose([
+        transforms.ToTensor(),
     ]),
     'normalize': transforms.Compose([
         Normalize([0.5] * 3, [0.5] * 3)
