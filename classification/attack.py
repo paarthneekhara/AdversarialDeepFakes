@@ -103,10 +103,39 @@ def un_preprocess_image(image, size):
     return new_image
 
 
+def iterative_fgsm(input_img, model, cuda = True, max_iter = 100, alpha = 0.0001, eps = 0.01):
+    input_var = autograd.Variable(input_img, requires_grad=True)
+    target_var = autograd.Variable(torch.LongTensor([0]))
 
-def iterative_fgsm(processed_image, model, cuda = True, max_iter = 100, alpha = 0.0001):
+    iter_no = 0
+    
+    while iter_no < max_iter:
+        prediction, output, logits = predict_with_model(input_var, model, cuda=cuda)    
+        if (output[0][0] - output[0][1]) > 0.99:
+            break
+        loss_criterion = nn.CrossEntropyLoss()
+        loss = loss_criterion(output, target_var)
+        loss.backward()
+
+        step_adv = input_var.detach() - alpha * torch.sign(input_var.grad.detach())
+
+        total_pert = step_adv - input_img
+        total_pert = torch.clamp(total_pert, -eps, eps)
+        
+        input_adv = input_img + total_pert
+        input_adv = torch.clamp(input_adv, -1.0, 1.0)
+        
+        input_var.data = input_adv.detach()
+
+        iter_no += 1
+
+    return input_var
+
+
+def iterative_fgsm_old(processed_image, model, cuda = True, max_iter = 100, alpha = 0.0001):
     
     iter_no = 0
+    
     prediction, output, logits = predict_with_model(processed_image, model, cuda=cuda)
     while ( not ((output[0][0] - output[0][1]) > 0.99 ) ):
         if iter_no >= max_iter:
