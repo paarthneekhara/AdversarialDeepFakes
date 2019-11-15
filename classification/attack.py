@@ -167,6 +167,7 @@ def predict_with_model_legacy(image, model, post_function=nn.Softmax(dim=1),
 
 def predict_with_model(preprocessed_image, model, post_function=nn.Softmax(dim=1), cuda=True):
     """
+    Adapted predict_for_model for attack. Differentiable image pre-processing.
     Predicts the label of an input image. Performs resizing and normalization before feeding in image.
 
     :param image: numpy image
@@ -305,10 +306,8 @@ def create_adversarial_video(video_path, model_path, output_path,
 
             print (">>>>Prediction LEGACY for frame no. {}: {}".format(frame_num ,output))
 
-            # Text and bb
-            
-            
             if showlabel:
+                # Text and bb
                 # print a bounding box in the generated video
                 x = face.left()
                 y = face.top()
