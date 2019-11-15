@@ -103,7 +103,7 @@ def un_preprocess_image(image, size):
     return new_image
 
 
-def iterative_fgsm(input_img, model, cuda = True, max_iter = 100, alpha = 0.0001, eps = 0.01):
+def iterative_fgsm(input_img, model, cuda = True, max_iter = 100, alpha = 0.0001, eps = 0.01, desired_acc = 0.99):
     input_var = autograd.Variable(input_img, requires_grad=True)
 
     target_var = autograd.Variable(torch.LongTensor([0]))
@@ -114,8 +114,9 @@ def iterative_fgsm(input_img, model, cuda = True, max_iter = 100, alpha = 0.0001
     
     while iter_no < max_iter:
         prediction, output, logits = predict_with_model(input_var, model, cuda=cuda)    
-        if (output[0][0] - output[0][1]) > 0.99:
+        if (output[0][0] - output[0][1]) > desired_acc:
             break
+            
         loss_criterion = nn.CrossEntropyLoss()
         loss = loss_criterion(output, target_var)
         loss.backward()
@@ -133,32 +134,6 @@ def iterative_fgsm(input_img, model, cuda = True, max_iter = 100, alpha = 0.0001
         iter_no += 1
 
     return input_var
-
-
-def iterative_fgsm_old(processed_image, model, cuda = True, max_iter = 100, alpha = 0.0001):
-    
-    iter_no = 0
-    
-    prediction, output, logits = predict_with_model(processed_image, model, cuda=cuda)
-    while ( not ((output[0][0] - output[0][1]) > 0.99 ) ):
-        if iter_no >= max_iter:
-            break
-        
-        image_grad = torch.sign(autograd.grad( output[0][0], processed_image)[0])
-        image_grad.detach()
-        processed_image.detach()
-        new_processed_image = processed_image.clone() + alpha * image_grad.clone()
-
-        del processed_image
-        del image_grad
-        new_processed_image.detach()
-        processed_image = new_processed_image
-        
-        prediction, output, logits = predict_with_model(processed_image, model, cuda=cuda)
-        print("Optimizing", iter_no, prediction)
-        iter_no += 1
-
-    return processed_image
 
 
 def predict_with_model(preprocessed_image, model, post_function=nn.Softmax(dim=1), cuda=True):
