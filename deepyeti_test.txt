@@ -1,0 +1,14 @@
+python3 detect_from_video.py -i /data2/paarth/DeepFakeDataset/manipulated_sequences/Face2Face/c23/videos/183_253.mp4 -mi /data2/paarth/faceforensics++_models_subset/face_detection/xception/all_c23.p -o /data2/paarth/DFWORKING --cuda
+
+python3 attack.py -i /data2/paarth/DeepFakeDataset/manipulated_sequences/Face2Face/c23/videos/183_253.mp4 -mi /data2/paarth/faceforensics++_models_subset/face_detection/xception/all_c23.p -o /data2/paarth/DFWORKING/adv --cuda
+
+python3 detect_from_video.py -i /data2/paarth/DFWORKING/adv/183_253.avi -mi /data2/paarth/faceforensics++_models_subset/face_detection/xception/all_c23.p -o /data2/paarth/DFWORKING/labelled_adv --cuda
+
+
+
+
+python3 detect_from_video.py -i /data2/paarth/DeepFakeDataset/manipulated_sequences/Face2Face/c23/videos/666_656.mp4 -mi /data2/paarth/faceforensics++_models_subset/face_detection/xception/all_c23.p -o /data2/paarth/DFWORKING --cuda
+
+python3 attack.py -i /data2/paarth/DeepFakeDataset/manipulated_sequences/Face2Face/c23/videos/666_656.mp4 -mi /data2/paarth/faceforensics++_models_subset/face_detection/xception/all_c23.p -o /data2/paarth/DFWORKING/adv --cuda
+
+python3 detect_from_video.py -i /data2/paarth/DFWORKING/adv/666_656.avi -mi /data2/paarth/faceforensics++_models_subset/face_detection/xception/all_c23.p -o /data2/paarth/DFWORKING/labelled_adv --cuda

@@ -69,8 +69,10 @@ def preprocess_image(image, cuda=True):
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     # Preprocess using the preprocessing function used during training and
     # casting it to PIL image
+    
     preprocess = xception_default_data_transforms['test']
     preprocessed_image = preprocess(pil_image.fromarray(image))
+    
     # Add first dimension as the network expects a batch
     preprocessed_image = preprocessed_image.unsqueeze(0)
     if cuda:
@@ -84,10 +86,10 @@ def preprocess_image(image, cuda=True):
 def un_preprocess_image(image, size):
     # unnormalize, no need to resize here - predictor now accepts non-resized images.
     image.detach()
-    unnorm_transform = xception_default_data_transforms['unnormalize']
+    # unnorm_transform = xception_default_data_transforms['unnormalize']
     new_image = image.squeeze(0)
-    new_image.detach()
-    new_image = unnorm_transform(new_image)
+    # new_image.detach()
+    # new_image = unnorm_transform(new_image)
     new_image = new_image.detach().cpu()
 
     undo_transform = transforms.Compose([
@@ -102,7 +104,7 @@ def un_preprocess_image(image, size):
     return new_image
 
 
-def iterative_fgsm(input_img, model, cuda = True, max_iter = 100, alpha = 0.0001, eps = 0.01, desired_acc = 0.99):
+def iterative_fgsm(input_img, model, cuda = True, max_iter = 100, alpha = 1/255.0, eps = 16/255.0, desired_acc = 0.99):
     input_var = autograd.Variable(input_img, requires_grad=True)
 
     target_var = autograd.Variable(torch.LongTensor([0]))
@@ -121,12 +123,11 @@ def iterative_fgsm(input_img, model, cuda = True, max_iter = 100, alpha = 0.0001
         loss.backward()
 
         step_adv = input_var.detach() - alpha * torch.sign(input_var.grad.detach())
-
         total_pert = step_adv - input_img
         total_pert = torch.clamp(total_pert, -eps, eps)
         
         input_adv = input_img + total_pert
-        input_adv = torch.clamp(input_adv, -1.0, 1.0)
+        input_adv = torch.clamp(input_adv, 0, 1)
         
         input_var.data = input_adv.detach()
 
@@ -134,6 +135,30 @@ def iterative_fgsm(input_img, model, cuda = True, max_iter = 100, alpha = 0.0001
 
     return input_var
 
+def predict_with_model_legacy(image, model, post_function=nn.Softmax(dim=1),
+                       cuda=True):
+    """
+    Predicts the label of an input image. Preprocesses the input image and
+    casts it to cuda if required
+
+    :param image: numpy image
+    :param model: torch model with linear layer at the end
+    :param post_function: e.g., softmax
+    :param cuda: enables cuda, must be the same parameter as the model
+    :return: prediction (1 = fake, 0 = real)
+    """
+    # Preprocess
+    preprocessed_image = preprocess_image(image, cuda)
+
+    # Model prediction
+    output = model(preprocessed_image)
+    output = post_function(output)
+
+    # Cast to desired
+    _, prediction = torch.max(output, 1)    # argmax
+    prediction = float(prediction.cpu().numpy())
+
+    return int(prediction), output
 
 def predict_with_model(preprocessed_image, model, post_function=nn.Softmax(dim=1), cuda=True):
     """
@@ -150,8 +175,12 @@ def predict_with_model(preprocessed_image, model, post_function=nn.Softmax(dim=1
     # Model prediction
 
     # differentiable resizing: doing resizing here instead of preprocessing
-    resized_image = nn.functional.interpolate(preprocessed_image, size = (299, 299), mode = "bilinear", align_corners = True)
-    logits = model(resized_image)
+    resized_image = nn.functional.interpolate(preprocessed_image * 255.0, size = (299, 299), mode = "bilinear", align_corners = True)/255.0
+    
+    norm_transform = xception_default_data_transforms['normalize']
+    normalized_image = norm_transform(resized_image)
+    
+    logits = model(normalized_image)
     output = post_function(logits)
 
     # Cast to desired
@@ -269,6 +298,9 @@ def create_adversarial_video(video_path, model_path, output_path,
 
             print (">>>>Prediction for frame no. {}: {}".format(frame_num ,output))
 
+            prediction, output = predict_with_model_legacy(cropped_face, model, cuda=cuda)
+
+            print (">>>>Prediction LEGACY for frame no. {}: {}".format(frame_num ,output))
 
             # Text and bb
             x = face.left()
