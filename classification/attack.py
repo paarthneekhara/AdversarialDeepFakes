@@ -105,7 +105,10 @@ def un_preprocess_image(image, size):
 
 def iterative_fgsm(input_img, model, cuda = True, max_iter = 100, alpha = 0.0001, eps = 0.01):
     input_var = autograd.Variable(input_img, requires_grad=True)
+
     target_var = autograd.Variable(torch.LongTensor([0]))
+    if cuda:
+        target_var = target_var.cuda()
 
     iter_no = 0
     
