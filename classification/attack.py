@@ -92,7 +92,7 @@ def un_preprocess_image(image, size):
 
     undo_transform = transforms.Compose([
         transforms.ToPILImage(),
-        transforms.Resize((size, size))
+        # transforms.Resize((size, size))
     ])
 
     new_image = undo_transform(new_image)
@@ -149,7 +149,9 @@ def predict_with_model(preprocessed_image, model, post_function=nn.Softmax(dim=1
     """
     
     # Model prediction
-    logits = model(preprocessed_image)
+    # print (">>>>>>>>>>>>>>>>>>>>>>",preprocessed_image)
+    resized_image = nn.functional.interpolate(preprocessed_image, size = (299, 299), mode = "bilinear")
+    logits = model(resized_image)
     output = post_function(logits)
 
     # Cast to desired

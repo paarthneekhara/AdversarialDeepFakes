@@ -34,7 +34,6 @@ xception_default_data_transforms = {
         transforms.Normalize([0.5] * 3, [0.5] * 3)
     ]),
     'test': transforms.Compose([
-        transforms.Resize((299, 299)),
         transforms.ToTensor(),
         transforms.Normalize([0.5] * 3, [0.5] * 3)
     ]),
