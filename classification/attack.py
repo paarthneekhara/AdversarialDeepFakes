@@ -82,7 +82,7 @@ def preprocess_image(image, cuda=True):
 
 
 def un_preprocess_image(image, size):
-    # unnormalize, un-resize
+    # unnormalize, no need to resize here - predictor now accepts non-resized images.
     image.detach()
     unnorm_transform = xception_default_data_transforms['unnormalize']
     new_image = image.squeeze(0)
@@ -92,7 +92,6 @@ def un_preprocess_image(image, size):
 
     undo_transform = transforms.Compose([
         transforms.ToPILImage(),
-        # transforms.Resize((size, size))
     ])
 
     new_image = undo_transform(new_image)
@@ -149,8 +148,9 @@ def predict_with_model(preprocessed_image, model, post_function=nn.Softmax(dim=1
     """
     
     # Model prediction
-    # print (">>>>>>>>>>>>>>>>>>>>>>",preprocessed_image)
-    resized_image = nn.functional.interpolate(preprocessed_image, size = (299, 299), mode = "bilinear")
+
+    # differentiable resizing: doing resizing here instead of preprocessing
+    resized_image = nn.functional.interpolate(preprocessed_image, size = (299, 299), mode = "bilinear", align_corners = True)
     logits = model(resized_image)
     output = post_function(logits)
 
