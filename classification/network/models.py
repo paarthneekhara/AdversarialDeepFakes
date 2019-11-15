@@ -25,7 +25,8 @@ def return_pytorch04_xception(pretrained=True):
         pos_model_paths = [
             '/data2/paarth/faceforensics++_models_subset/xception-b5690688.pth',
             '/home/shehzeen/AdversarialDeepFakes/xception-b5690688.pth',
-            '/Users/paarthneekhara/Dev/DeepLearning/DeepFakes/xception-b5690688.pth'
+            '/Users/paarthneekhara/Dev/DeepLearning/DeepFakes/xception-b5690688.pth',
+            '/Users/shehzeensh/Research/Xception/xception-b5690688.pth'
             ]
 
         state_dict = None
