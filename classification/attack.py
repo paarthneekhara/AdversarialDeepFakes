@@ -107,6 +107,65 @@ def un_preprocess_image(image, size):
     new_image = cv2.cvtColor(new_image, cv2.COLOR_RGB2BGR)
 
     return new_image
+    
+
+def torch_arctanh(x, eps=1e-6):
+    x *= (1. - eps)
+    return (torch.log((1 + x) / (1 - x))) * 0.5
+
+def carlini_wagner_attack(input_img, model, cuda = True, 
+    max_attack_iter = 100, alpha = 1e-2, 
+    const = 1e-3,  desired_acc = 0.99, max_bs_iter = 9, confidence = 0.0):
+    
+    attack_w = autograd.Variable(torch_arctanh(input_img.data - 1), requires_grad = True)
+    bestl2 = 1e10
+    bestscore = -1
+
+    lower_bound_c = 0
+    upper_bound_c = 1.0
+    bestl2 = 1e10
+    bestimg = None
+
+    for bsi in range(max_bs_iter):
+        for iter_no in range(max_attack_iter):
+            # if output[0][0] - output[0][1] > desired_acc:
+            #     # no need to optimize beyond this
+            #     break
+            if iter_no % 10 == 0:
+                print ("BSI {} ITER {}").format(bsi, iter_no)
+
+            adv_image = torch.tanh(input_img + attack_w) + 1.
+            prediction, output, logits = predict_with_model(adv_image, model, cuda=cuda)
+            loss1 = torch.clamp( logits[0][1]-logits[0][0] + confidence, min = 0.0)
+            loss2 = torch.norm(adv_image - input_img, 2)
+
+            loss_total = loss2 + const * loss1
+            loss_total.backward()
+
+            # print attack_w.grad
+            attack_w.data = attack_w.data - alpha * attack_w.grad
+
+        # binary search for c
+        if (output[0][0] - output[0][1] > desired_acc):
+            if loss2 < bestl2:
+                bestl2 = loss2
+                print ("best l2", bestl2)
+                bestimg = adv_image.detach().data
+
+            upper_bound_c = min(upper_bound_c, const)
+        else:
+            lower_bound_c = max(lower_bound_c, const)
+
+        const = (lower_bound_c + upper_bound_c)/2.0
+
+    if bestimg is not None:
+        return bestimg
+    else:
+        return adv_image
+
+
+
+
 
 
 def iterative_fgsm(input_img, model, cuda = True, max_iter = 100, alpha = 1/255.0, eps = 16/255.0, desired_acc = 0.99):
@@ -124,7 +183,7 @@ def iterative_fgsm(input_img, model, cuda = True, max_iter = 100, alpha = 1/255.
             break
             
         loss_criterion = nn.CrossEntropyLoss()
-        loss = loss_criterion(output, target_var)
+        loss = loss_criterion(logits, target_var)
         loss.backward()
 
         step_adv = input_var.detach() - alpha * torch.sign(input_var.grad.detach())
@@ -289,7 +348,7 @@ def create_adversarial_video(video_path, model_path, output_path,
             processed_image = preprocess_image(cropped_face, cuda = cuda)
             
             # Attack happening here
-            perturbed_image = iterative_fgsm(processed_image, model, cuda)
+            perturbed_image = carlini_wagner_attack(processed_image, model, cuda)
             
             # Undo the processing of xceptionnet
             unpreprocessed_image = un_preprocess_image(perturbed_image, size)
