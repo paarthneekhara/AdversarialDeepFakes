@@ -114,8 +114,8 @@ def torch_arctanh(x, eps=1e-6):
     return (torch.log((1 + x) / (1 - x))) * 0.5
 
 def carlini_wagner_attack(input_img, model, cuda = True, 
-    max_attack_iter = 100, alpha = 1e-2, 
-    const = 1e-3,  desired_acc = 0.99, max_bs_iter = 9, confidence = 0.0):
+    max_attack_iter = 500, alpha = 1e-3, 
+    const = 0.005,  desired_acc = 0.99, max_bs_iter = 5, confidence = 20.0):
     
     attack_w = autograd.Variable(torch_arctanh(input_img.data - 1), requires_grad = True)
     bestl2 = 1e10
@@ -125,28 +125,34 @@ def carlini_wagner_attack(input_img, model, cuda = True,
     upper_bound_c = 1.0
     bestl2 = 1e10
     bestimg = None
-
+    optimizer = torch.optim.Adam([attack_w], lr=alpha)
     for bsi in range(max_bs_iter):
         for iter_no in range(max_attack_iter):
             # if output[0][0] - output[0][1] > desired_acc:
             #     # no need to optimize beyond this
             #     break
-            if iter_no % 10 == 0:
-                print ("BSI {} ITER {}").format(bsi, iter_no)
+            
 
-            adv_image = torch.tanh(input_img + attack_w) + 1.
+            adv_image = 0.5 * ( torch.tanh(input_img + attack_w) + 1. )
             prediction, output, logits = predict_with_model(adv_image, model, cuda=cuda)
             loss1 = torch.clamp( logits[0][1]-logits[0][0] + confidence, min = 0.0)
             loss2 = torch.norm(adv_image - input_img, 2)
 
             loss_total = loss2 + const * loss1
+            optimizer.zero_grad()
             loss_total.backward()
-
+            optimizer.step()
             # print attack_w.grad
-            attack_w.data = attack_w.data - alpha * attack_w.grad
+
+            # attack_w.data = attack_w.data - alpha * attack_w.grad
+
+            if iter_no % 50 == 0:
+                print ("BSI {} ITER {}".format(bsi, iter_no), output )
+                print ("Losses", loss_total, loss1.data, loss2)
+
 
         # binary search for c
-        if (output[0][0] - output[0][1] > desired_acc):
+        if (logits[0][0] - logits[0][1] > confidence):
             if loss2 < bestl2:
                 bestl2 = loss2
                 print ("best l2", bestl2)
@@ -162,10 +168,6 @@ def carlini_wagner_attack(input_img, model, cuda = True,
         return bestimg
     else:
         return adv_image
-
-
-
-
 
 
 def iterative_fgsm(input_img, model, cuda = True, max_iter = 100, alpha = 1/255.0, eps = 16/255.0, desired_acc = 0.99):
@@ -239,7 +241,7 @@ def predict_with_model(preprocessed_image, model, post_function=nn.Softmax(dim=1
     # Model prediction
 
     # differentiable resizing: doing resizing here instead of preprocessing
-    resized_image = nn.functional.interpolate(preprocessed_image, size = (299, 299), mode = "bilinear")
+    resized_image = nn.functional.interpolate(preprocessed_image, size = (299, 299), mode = "bilinear", align_corners = True)
     norm_transform = xception_default_data_transforms['normalize']
     normalized_image = norm_transform(resized_image)
     
@@ -249,13 +251,13 @@ def predict_with_model(preprocessed_image, model, post_function=nn.Softmax(dim=1
     # Cast to desired
     _, prediction = torch.max(output, 1)    # argmax
     prediction = float(prediction.cpu().numpy())
-    print ("prediction", prediction)
-    print ("output", output)
+    # print ("prediction", prediction)
+    # print ("output", output)
     return int(prediction), output, logits
 
 
 def create_adversarial_video(video_path, model_path, output_path,
-                            start_frame=0, end_frame=None, cuda=True, showlabel = True):
+                            start_frame=0, end_frame=None, attack="iterative_fgsm", cuda=True, showlabel = True):
     """
     Reads a video and evaluates a subset of frames with the a detection network
     that takes in a full frame. Outputs are only given if a face is present
@@ -348,7 +350,10 @@ def create_adversarial_video(video_path, model_path, output_path,
             processed_image = preprocess_image(cropped_face, cuda = cuda)
             
             # Attack happening here
-            perturbed_image = carlini_wagner_attack(processed_image, model, cuda)
+            if attack == "iterative_fgsm":
+                perturbed_image = iterative_fgsm(processed_image, model, cuda)
+            elif attack == "carlini_wagner":
+                perturbed_image = carlini_wagner_attack(processed_image, model, cuda)
             
             # Undo the processing of xceptionnet
             unpreprocessed_image = un_preprocess_image(perturbed_image, size)
@@ -407,6 +412,7 @@ if __name__ == '__main__':
                    default='.')
     p.add_argument('--start_frame', type=int, default=0)
     p.add_argument('--end_frame', type=int, default=None)
+    p.add_argument('--attack', '-a', type=str, default="iterative_fgsm")
     p.add_argument('--cuda', action='store_true')
     p.add_argument('--showlabel', action='store_true') # add face labels in the generated video
 
