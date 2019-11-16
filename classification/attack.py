@@ -114,8 +114,8 @@ def torch_arctanh(x, eps=1e-6):
     return (torch.log((1 + x) / (1 - x))) * 0.5
 
 def carlini_wagner_attack(input_img, model, cuda = True, 
-    max_attack_iter = 500, alpha = 1e-3, 
-    const = 0.005,  desired_acc = 0.99, max_bs_iter = 5, confidence = 20.0):
+    max_attack_iter = 500, alpha = 0.005, 
+    const = 1e-3, max_bs_iter = 5, confidence = 20.0):
     
     attack_w = autograd.Variable(torch_arctanh(input_img.data - 1), requires_grad = True)
     bestl2 = 1e10
