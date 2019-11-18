@@ -136,7 +136,8 @@ def predict_with_model_legacy(image, model, post_function=nn.Softmax(dim=1),
 
 
 def create_adversarial_video(video_path, model_path, output_path,
-                            start_frame=0, end_frame=None, attack="iterative_fgsm", cuda=True, showlabel = True):
+                            start_frame=0, end_frame=None, attack="iterative_fgsm", 
+                            compress = True, cuda=True, showlabel = True):
     """
     Reads a video and evaluates a subset of frames with the a detection network
     that takes in a full frame. Outputs are only given if a face is present
@@ -156,7 +157,12 @@ def create_adversarial_video(video_path, model_path, output_path,
 
     video_fn = video_path.split('/')[-1].split('.')[0]+'.avi'
     os.makedirs(output_path, exist_ok=True)
-    fourcc = cv2.VideoWriter_fourcc(*'HFYU') # Chnaged to HFYU because it is lossless
+
+    if compress:
+        fourcc = cv2.VideoWriter_fourcc(*'MJPG')
+    else:
+        fourcc = cv2.VideoWriter_fourcc(*'HFYU') # Chnaged to HFYU because it is lossless
+        
     fps = reader.get(cv2.CAP_PROP_FPS)
     num_frames = int(reader.get(cv2.CAP_PROP_FRAME_COUNT))
     writer = None

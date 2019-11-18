@@ -22,7 +22,9 @@ from tqdm import tqdm
 
 from network.models import model_selection
 from dataset.transform import xception_default_data_transforms
-
+import robust_transforms
+from torchvision import transforms
+import numpy
 
 def get_boundingbox(face, width, height, scale=1.3, minsize=None):
     """
@@ -54,7 +56,7 @@ def get_boundingbox(face, width, height, scale=1.3, minsize=None):
     return x1, y1, size_bb
 
 
-def preprocess_image(image, cuda=True):
+def preprocess_image(image, cuda=True, legacy = False):
     """
     Preprocesses the image such that it can be fed into our network.
     During this process we envoke PIL to cast it into a PIL image.
@@ -67,55 +69,45 @@ def preprocess_image(image, cuda=True):
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     # Preprocess using the preprocessing function used during training and
     # casting it to PIL image
-    preprocess = xception_default_data_transforms['test']
+    if not legacy:
+        # only conver to tensor here, 
+        # other transforms -> resize, normalize differentiable done in predict_from_model func
+        preprocess = xception_default_data_transforms['to_tensor']
+    else:
+        preprocess = xception_default_data_transforms['test']
+
     preprocessed_image = preprocess(pil_image.fromarray(image))
+    
     # Add first dimension as the network expects a batch
     preprocessed_image = preprocessed_image.unsqueeze(0)
     if cuda:
         preprocessed_image = preprocessed_image.cuda()
+
+    preprocessed_image.requires_grad = True
     return preprocessed_image
 
 
-def predict_with_model(image, model, post_function=nn.Softmax(dim=1),
-                       cuda=True):
+def un_preprocess_image(image):
     """
-    Predicts the label of an input image. Preprocesses the input image and
-    casts it to cuda if required
-
-    :param image: numpy image
-    :param model: torch model with linear layer at the end
-    :param post_function: e.g., softmax
-    :param cuda: enables cuda, must be the same parameter as the model
-    :return: prediction (1 = fake, 0 = real)
+    Tensor to PIL image and RGB to BGR
     """
-    # Preprocess
-    preprocessed_image = preprocess_image(image, cuda)
+    
+    image.detach()
+    new_image = image.squeeze(0)
+    new_image = new_image.detach().cpu()
 
-    # Model prediction
-    output = model(preprocessed_image)
-    output = post_function(output)
+    undo_transform = transforms.Compose([
+        transforms.ToPILImage(),
+    ])
 
-    # Cast to desired
-    _, prediction = torch.max(output, 1)    # argmax
-    prediction = float(prediction.cpu().numpy())
+    new_image = undo_transform(new_image)
+    new_image = numpy.array(new_image)
 
-    return int(prediction), output
+    new_image = cv2.cvtColor(new_image, cv2.COLOR_RGB2BGR)
 
+    return new_image
 
-def test_full_image_network(video_path, model_path, output_path,
-                            start_frame=0, end_frame=None, cuda=True):
-    """
-    Reads a video and evaluates a subset of frames with the a detection network
-    that takes in a full frame. Outputs are only given if a face is present
-    and the face is highlighted using dlib.
-    :param video_path: path to video file
-    :param model_path: path to model file (should expect the full sized image)
-    :param output_path: path where the output video is stored
-    :param start_frame: first frame to evaluate
-    :param end_frame: last frame to evaluate
-    :param cuda: enable cuda
-    :return:
-    """
+def test_transforms(video_path, output_path, cuda=True, start_frame = 0, end_frame=None):
     print('Starting: {}'.format(video_path))
 
     # Read and write
@@ -131,22 +123,7 @@ def test_full_image_network(video_path, model_path, output_path,
     # Face detector
     face_detector = dlib.get_frontal_face_detector()
 
-    # Load model
-    model, *_ = model_selection(modelname='xception', num_out_classes=2)
-    if model_path is not None:
-        if not cuda:
-            model = torch.load(model_path, map_location = "cpu")
-        else:
-            model = torch.load(model_path)
-        print('Model found in {}'.format(model_path))
-    else:
-        print('No model found, initializing random model.')
-    if cuda:
-        print("Converting mode to cuda")
-        model = model.cuda()
-        print("Converted to cuda")
-
-    # Text variables
+    # image transform
     font_face = cv2.FONT_HERSHEY_SIMPLEX
     thickness = 2
     font_scale = 1
@@ -171,9 +148,7 @@ def test_full_image_network(video_path, model_path, output_path,
         height, width = image.shape[:2]
 
         # Init output writer
-        if writer is None:
-            writer = cv2.VideoWriter(join(output_path, video_fn), fourcc, fps,
-                                     (height, width)[::-1])
+        
 
         # 2. Detect with dlib
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -187,59 +162,38 @@ def test_full_image_network(video_path, model_path, output_path,
             x, y, size = get_boundingbox(face, width, height)
             cropped_face = image[y:y+size, x:x+size]
 
-            # Actual prediction using our model
-            prediction, output = predict_with_model(cropped_face, model,
-                                                    cuda=cuda)
-            # ------------------------------------------------------------------
+            processed_image = preprocess_image(cropped_face, cuda = cuda)
 
-            # Text and bb
-            print ("Prediction", prediction, output)
-            x = face.left()
-            y = face.top()
-            w = face.right() - x
-            h = face.bottom() - y
-            label = 'fake' if prediction == 1 else 'real'
-            color = (0, 255, 0) if prediction == 0 else (0, 0, 255)
-            output_list = ['{0:.2f}'.format(float(x)) for x in
-                           output.detach().cpu().numpy()[0]]
-            cv2.putText(image, str(output_list)+'=>'+label, (x, y+h+30),
-                        font_face, font_scale,
-                        color, thickness, 2)
-            # draw box over face
-            cv2.rectangle(image, (x, y), (x + w, y + h), color, 2)
+            transformed_image = robust_transforms.compress_decompress(processed_image, factor = 0.25)
 
-        if frame_num >= end_frame:
+
+            original_image = un_preprocess_image(processed_image)
+            new_image = un_preprocess_image(transformed_image)
+
+            cv2.imwrite(join(output_path, "original.jpg"), original_image)
+            cv2.imwrite(join(output_path, "transformed.jpg"), new_image)
+
+            
+            
             break
-
-        # Show
-        #cv2.imshow('test', image)
-        #cv2.waitKey(33)     # About 30 fps
-        writer.write(image)
-    pbar.close()
-    if writer is not None:
-        writer.release()
-        print('Finished! Output saved under {}'.format(output_path))
-    else:
-        print('Input video file was empty')
+        break
+        
+    
 
 
 if __name__ == '__main__':
     p = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     p.add_argument('--video_path', '-i', type=str)
-    p.add_argument('--model_path', '-mi', type=str, default=None)
-    p.add_argument('--output_path', '-o', type=str,
-                   default='.')
-    p.add_argument('--start_frame', type=int, default=0)
-    p.add_argument('--end_frame', type=int, default=None)
+    p.add_argument('--output_path', '-o', type=str)
     p.add_argument('--cuda', action='store_true')
     args = p.parse_args()
 
     video_path = args.video_path
     if video_path.endswith('.mp4') or video_path.endswith('.avi'):
-        test_full_image_network(**vars(args))
+        test_transforms(**vars(args))
     else:
         videos = os.listdir(video_path)
         for video in videos:
             args.video_path = join(video_path, video)
-            test_full_image_network(**vars(args))
+            test_transforms(**vars(args))
