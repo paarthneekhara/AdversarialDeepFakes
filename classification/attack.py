@@ -25,6 +25,7 @@ from dataset.transform import xception_default_data_transforms
 from torch import autograd
 import numpy
 from torchvision import transforms
+import attack_algos
 
 def get_boundingbox(face, width, height, scale=1.3, minsize=None):
     """
@@ -108,99 +109,6 @@ def un_preprocess_image(image, size):
 
     return new_image
     
-
-def torch_arctanh(x, eps=1e-6):
-    x *= (1. - eps)
-    return (torch.log((1 + x) / (1 - x))) * 0.5
-
-def carlini_wagner_attack(input_img, model, cuda = True, 
-    max_attack_iter = 500, alpha = 0.005, 
-    const = 1e-3, max_bs_iter = 5, confidence = 20.0):
-    
-    attack_w = autograd.Variable(torch_arctanh(input_img.data - 1), requires_grad = True)
-    bestl2 = 1e10
-    bestscore = -1
-
-    lower_bound_c = 0
-    upper_bound_c = 1.0
-    bestl2 = 1e10
-    bestimg = None
-    optimizer = torch.optim.Adam([attack_w], lr=alpha)
-    for bsi in range(max_bs_iter):
-        for iter_no in range(max_attack_iter):
-            # if output[0][0] - output[0][1] > desired_acc:
-            #     # no need to optimize beyond this
-            #     break
-            
-
-            adv_image = 0.5 * ( torch.tanh(input_img + attack_w) + 1. )
-            prediction, output, logits = predict_with_model(adv_image, model, cuda=cuda)
-            loss1 = torch.clamp( logits[0][1]-logits[0][0] + confidence, min = 0.0)
-            loss2 = torch.norm(adv_image - input_img, 2)
-
-            loss_total = loss2 + const * loss1
-            optimizer.zero_grad()
-            loss_total.backward()
-            optimizer.step()
-            # print attack_w.grad
-
-            # attack_w.data = attack_w.data - alpha * attack_w.grad
-
-            if iter_no % 50 == 0:
-                print ("BSI {} ITER {}".format(bsi, iter_no), output )
-                print ("Losses", loss_total, loss1.data, loss2)
-
-
-        # binary search for c
-        if (logits[0][0] - logits[0][1] > confidence):
-            if loss2 < bestl2:
-                bestl2 = loss2
-                print ("best l2", bestl2)
-                bestimg = adv_image.detach().data
-
-            upper_bound_c = min(upper_bound_c, const)
-        else:
-            lower_bound_c = max(lower_bound_c, const)
-
-        const = (lower_bound_c + upper_bound_c)/2.0
-
-    if bestimg is not None:
-        return bestimg
-    else:
-        return adv_image
-
-
-def iterative_fgsm(input_img, model, cuda = True, max_iter = 100, alpha = 1/255.0, eps = 16/255.0, desired_acc = 0.99):
-    input_var = autograd.Variable(input_img, requires_grad=True)
-
-    target_var = autograd.Variable(torch.LongTensor([0]))
-    if cuda:
-        target_var = target_var.cuda()
-
-    iter_no = 0
-    
-    while iter_no < max_iter:
-        prediction, output, logits = predict_with_model(input_var, model, cuda=cuda)    
-        if (output[0][0] - output[0][1]) > desired_acc:
-            break
-            
-        loss_criterion = nn.CrossEntropyLoss()
-        loss = loss_criterion(logits, target_var)
-        loss.backward()
-
-        step_adv = input_var.detach() - alpha * torch.sign(input_var.grad.detach())
-        total_pert = step_adv - input_img
-        total_pert = torch.clamp(total_pert, -eps, eps)
-        
-        input_adv = input_img + total_pert
-        input_adv = torch.clamp(input_adv, 0, 1)
-        
-        input_var.data = input_adv.detach()
-
-        iter_no += 1
-
-    return input_var
-
 def predict_with_model_legacy(image, model, post_function=nn.Softmax(dim=1),
                        cuda=True):
     """
@@ -225,35 +133,6 @@ def predict_with_model_legacy(image, model, post_function=nn.Softmax(dim=1),
     prediction = float(prediction.cpu().numpy())
 
     return int(prediction), output
-
-def predict_with_model(preprocessed_image, model, post_function=nn.Softmax(dim=1), cuda=True):
-    """
-    Adapted predict_for_model for attack. Differentiable image pre-processing.
-    Predicts the label of an input image. Performs resizing and normalization before feeding in image.
-
-    :param image: numpy image
-    :param model: torch model with linear layer at the end
-    :param post_function: e.g., softmax
-    :param cuda: enables cuda, must be the same parameter as the model
-    :return: prediction (1 = fake, 0 = real), output probs, logits
-    """
-    
-    # Model prediction
-
-    # differentiable resizing: doing resizing here instead of preprocessing
-    resized_image = nn.functional.interpolate(preprocessed_image, size = (299, 299), mode = "bilinear", align_corners = True)
-    norm_transform = xception_default_data_transforms['normalize']
-    normalized_image = norm_transform(resized_image)
-    
-    logits = model(normalized_image)
-    output = post_function(logits)
-
-    # Cast to desired
-    _, prediction = torch.max(output, 1)    # argmax
-    prediction = float(prediction.cpu().numpy())
-    # print ("prediction", prediction)
-    # print ("output", output)
-    return int(prediction), output, logits
 
 
 def create_adversarial_video(video_path, model_path, output_path,
@@ -351,9 +230,9 @@ def create_adversarial_video(video_path, model_path, output_path,
             
             # Attack happening here
             if attack == "iterative_fgsm":
-                perturbed_image = iterative_fgsm(processed_image, model, cuda)
+                perturbed_image = attack_algos.iterative_fgsm(processed_image, model, cuda)
             elif attack == "carlini_wagner":
-                perturbed_image = carlini_wagner_attack(processed_image, model, cuda)
+                perturbed_image = attack_algos.carlini_wagner_attack(processed_image, model, cuda)
             
             # Undo the processing of xceptionnet
             unpreprocessed_image = un_preprocess_image(perturbed_image, size)
@@ -362,7 +241,7 @@ def create_adversarial_video(video_path, model_path, output_path,
 
             cropped_face = image[y:y+size, x:x+size]
             processed_image = preprocess_image(cropped_face, cuda = cuda)
-            prediction, output, logits = predict_with_model(processed_image, model, cuda=cuda)
+            prediction, output, logits = attack_algos.predict_with_model(processed_image, model, cuda=cuda)
 
             print (">>>>Prediction for frame no. {}: {}".format(frame_num ,output))
 
