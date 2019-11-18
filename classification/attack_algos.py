@@ -8,7 +8,7 @@ def predict_with_model(preprocessed_image, model, post_function=nn.Softmax(dim=1
     Adapted predict_for_model for attack. Differentiable image pre-processing.
     Predicts the label of an input image. Performs resizing and normalization before feeding in image.
 
-    :param image: numpy image
+    :param image: torch tenosr (bs, c, h, w)
     :param model: torch model with linear layer at the end
     :param post_function: e.g., softmax
     :param cuda: enables cuda, must be the same parameter as the model
@@ -106,7 +106,7 @@ def carlini_wagner_attack(input_img, model, cuda = True,
             if loss2 < bestl2:
                 bestl2 = loss2
                 print (">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> Best l2", bestl2)
-                bestimg = adv_image.detach().data
+                bestimg = adv_image.detach().clone().data
 
             upper_bound_c = min(upper_bound_c, const)
         else:
