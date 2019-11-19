@@ -20,6 +20,8 @@ import torch.nn as nn
 from PIL import Image as pil_image
 from tqdm import tqdm
 
+import robust_transforms as trans_func
+
 from network.models import model_selection
 from dataset.transform import xception_default_data_transforms
 from torch import autograd
@@ -171,6 +173,8 @@ def carlini_wagner_attack(input_img, model, cuda = True,
 
 
 def iterative_fgsm(input_img, model, cuda = True, max_iter = 100, alpha = 1/255.0, eps = 16/255.0, desired_acc = 0.99):
+    
+
     input_var = autograd.Variable(input_img, requires_grad=True)
 
     target_var = autograd.Variable(torch.LongTensor([0]))
@@ -178,15 +182,26 @@ def iterative_fgsm(input_img, model, cuda = True, max_iter = 100, alpha = 1/255.
         target_var = target_var.cuda()
 
     iter_no = 0
-    
+    loss_criterion = nn.CrossEntropyLoss()
+    loss_accumulated = 0
+    scale_factor_list = [0.1, 0.25, 0.5, 0.75, 0.9]
+
     while iter_no < max_iter:
-        prediction, output, logits = predict_with_model(input_var, model, cuda=cuda)    
-        if (output[0][0] - output[0][1]) > desired_acc:
+
+        all_fooled = True
+        for scale_factor in scale_factor_list:
+            scaled_img = trans_func.compress_decompress(input_var, scale_factor, cuda)
+
+            prediction, output, logits = predict_with_model(scaled_img, model, cuda=cuda)
+            loss_accumulated += loss_criterion(logits, target_var)
+            if (output[0][0] - output[0][1]) < desired_acc:
+                all_fooled = False
+
+        print ("All Fooled", all_fooled)
+        if all_fooled:
             break
-            
-        loss_criterion = nn.CrossEntropyLoss()
-        loss = loss_criterion(logits, target_var)
-        loss.backward()
+
+        loss_accumulated.backward()
 
         step_adv = input_var.detach() - alpha * torch.sign(input_var.grad.detach())
         total_pert = step_adv - input_img
@@ -231,7 +246,7 @@ def predict_with_model(preprocessed_image, model, post_function=nn.Softmax(dim=1
     Adapted predict_for_model for attack. Differentiable image pre-processing.
     Predicts the label of an input image. Performs resizing and normalization before feeding in image.
 
-    :param image: numpy image
+    :param image: tensor image
     :param model: torch model with linear layer at the end
     :param post_function: e.g., softmax
     :param cuda: enables cuda, must be the same parameter as the model
@@ -251,8 +266,8 @@ def predict_with_model(preprocessed_image, model, post_function=nn.Softmax(dim=1
     # Cast to desired
     _, prediction = torch.max(output, 1)    # argmax
     prediction = float(prediction.cpu().numpy())
-    # print ("prediction", prediction)
-    # print ("output", output)
+    print ("prediction", prediction)
+    print ("output", output)
     return int(prediction), output, logits
 
 
