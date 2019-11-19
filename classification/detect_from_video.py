@@ -193,6 +193,7 @@ def test_full_image_network(video_path, model_path, output_path,
             # ------------------------------------------------------------------
 
             # Text and bb
+            print ("Prediction", prediction, output)
             x = face.left()
             y = face.top()
             w = face.right() - x

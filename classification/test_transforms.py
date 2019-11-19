@@ -163,8 +163,7 @@ def test_transforms(video_path, output_path, cuda=True, start_frame = 0, end_fra
             cropped_face = image[y:y+size, x:x+size]
 
             processed_image = preprocess_image(cropped_face, cuda = cuda)
-
-            transformed_image = robust_transforms.compress_decompress(processed_image,factor=0.2,cuda=cuda)
+            transformed_image = robust_transforms.compress_decompress(processed_image, factor = 0.25)
 
 
             original_image = un_preprocess_image(processed_image)
