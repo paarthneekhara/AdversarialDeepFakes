@@ -22,7 +22,7 @@ from tqdm import tqdm
 
 from network.models import model_selection
 from dataset.transform import xception_default_data_transforms
-
+import json
 
 def get_boundingbox(face, width, height, scale=1.3, minsize=None):
     """
@@ -157,6 +157,15 @@ def test_full_image_network(video_path, model_path, output_path,
     end_frame = end_frame if end_frame else num_frames
     pbar = tqdm(total=end_frame-start_frame)
 
+
+    metrics = {
+        'total_fake_frames' : 0,
+        'total_real_frames' : 0,
+        'total_frames' : 0,
+        'percent_fake_frames' : 0,
+        'probs_list' : []
+    }
+    
     while reader.isOpened():
         _, image = reader.read()
         if image is None:
@@ -193,11 +202,21 @@ def test_full_image_network(video_path, model_path, output_path,
             # ------------------------------------------------------------------
 
             # Text and bb
+            print ("Prediction", prediction, output)
             x = face.left()
             y = face.top()
             w = face.right() - x
             h = face.bottom() - y
             label = 'fake' if prediction == 1 else 'real'
+
+            if label == 'fake':
+                metrics['total_fake_frames'] += 1.
+            else:
+                metrics['total_real_frames'] += 1.
+
+            metrics['total_frames'] += 1.
+            metrics['probs_list'].append(output[0].detach().cpu().numpy().tolist())
+
             color = (0, 255, 0) if prediction == 0 else (0, 0, 255)
             output_list = ['{0:.2f}'.format(float(x)) for x in
                            output.detach().cpu().numpy()[0]]
@@ -215,6 +234,11 @@ def test_full_image_network(video_path, model_path, output_path,
         #cv2.waitKey(33)     # About 30 fps
         writer.write(image)
     pbar.close()
+    metrics['percent_fake_frames'] = metrics['total_fake_frames']/metrics['total_frames']
+
+    with open(join(output_path, video_fn.replace(".avi", "_metrics.json")), "w") as f:
+        f.write(json.dumps(metrics))
+
     if writer is not None:
         writer.release()
         print('Finished! Output saved under {}'.format(output_path))
