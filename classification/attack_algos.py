@@ -36,8 +36,8 @@ def predict_with_model(preprocessed_image, model, post_function=nn.Softmax(dim=1
 
 def robust_fgsm(input_img, model, cuda = True, 
     max_iter = 100, alpha = 1/255.0, 
-    eps = 16/255.0, desired_acc = 0.7,
-    transforms = {"gauss_noise", "gauss_blur", "translation", "resize"}
+    eps = 16/255.0, desired_acc = 0.9,
+    transform_set = {"gauss_noise", "gauss_blur", "translation", "resize"}
     ):
 
 
@@ -52,7 +52,7 @@ def robust_fgsm(input_img, model, cuda = True,
                 lambda x: rt.add_gaussian_noise(x, 0.01, cuda = cuda),
             ]
 
-        if "gaussian_blur" in apply_transforms:
+        if "gauss_blur" in apply_transforms:
             transform_list += [
                 lambda x: rt.gaussian_blur(x, kernel_size = (5, 5), sigma=(5., 5.), cuda = cuda),
                 lambda x: rt.gaussian_blur(x, kernel_size = (5, 5), sigma=(10., 10.), cuda = cuda),
@@ -92,12 +92,15 @@ def robust_fgsm(input_img, model, cuda = True,
     loss_criterion = nn.CrossEntropyLoss()
 
     while iter_no < max_iter:
-        transform_functions = _get_transforms(apply_transforms)
+        transform_functions = _get_transforms(transform_set)
+        
+        
         loss = 0
 
         all_fooled = True
         print ("**** Applying Transforms ****")
         for transform_fn in transform_functions:
+            
             transformed_img = transform_fn(input_var)
             prediction, output, logits = predict_with_model(transformed_img, model, cuda=cuda)
 
@@ -111,7 +114,8 @@ def robust_fgsm(input_img, model, cuda = True,
             break
 
         loss /= (1. * len(transform_functions))
-        input_var.grad.data.zero_() # just to ensure nothing funny happens
+        if input_var.grad is not None:
+            input_var.grad.data.zero_() # just to ensure nothing funny happens
         loss.backward()
 
         step_adv = input_var.detach() - alpha * torch.sign(input_var.grad.detach())
@@ -152,8 +156,8 @@ def iterative_fgsm(input_img, model, cuda = True, max_iter = 100, alpha = 1/255.
             
         loss_criterion = nn.CrossEntropyLoss()
         loss = loss_criterion(logits, target_var)
-
-        input_var.grad.data.zero_() # just to ensure nothing funny happens
+        if input_var.grad is not None:
+            input_var.grad.data.zero_() # just to ensure nothing funny happens
         loss.backward()
 
         step_adv = input_var.detach() - alpha * torch.sign(input_var.grad.detach())
