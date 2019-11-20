@@ -70,7 +70,7 @@ def main():
     if cuda_run:
         string_command_detect += " --cuda"
 
-    os.system(string_command_attack)
+    os.system(string_command_attack) 
     os.system(string_command_detect)
 
 
