@@ -22,7 +22,7 @@ def main():
     p.add_argument('--model_dir', '-mdir', type=str, 
         default="/data2/paarth/faceforensics++_models_subset/face_detection/xception") #dir contains all_c23.p etc
     p.add_argument('--data_dir', '-data', type=str, 
-        default="/data2/paarth/DeepFakeDataset/manipulated_sequences/") # dir containing face2face etc
+        default="/data2/paarth/DeepFakeDataset/manipulated_test_sequences/") # dir containing face2face etc
     p.add_argument('--exp_folder', '-exp', type=str, 
         default="/data2/paarth/DFExperiments") # where sub directories will be created
     p.add_argument('--model_type', '-mtype', type=str, default=None) #c23, c40 or raw
@@ -56,6 +56,9 @@ def main():
 
     detected_folder_path = join(experiment_path,fake_dir,model_type,"adv_{}_detected".format(attack_type))
 
+    if compress:
+        adversarial_folder_path += "_compressed"
+        detected_folder_path += "_compressed"
 
     if not os.path.isdir(adversarial_folder_path):
         os.makedirs(adversarial_folder_path)
@@ -78,7 +81,7 @@ def main():
     if cuda_run:
         string_command_detect += " --cuda"
 
-    
+
     print (">>>>>>>>>>>>>>>>>>>>>>>>Starting Attack")
     print(string_command_attack)
     os.system(string_command_attack)

@@ -1,7 +1,3 @@
-"""
-Author: Shehzeen Hussain
-"""
-
 import os
 import argparse
 from os.path import join
@@ -18,19 +14,17 @@ def main():
 
     p.add_argument('--data_dir', '-data', type=str, 
         default="/data2/paarth/DeepFakeDataset/manipulated_sequences/") # dir containing face2face etc
-    p.add_argument('--dest_dir', '-data', type=str, 
-        default="/data2/paarth/DeepFakeDataset/manipulated_test_sequences/") # dir containing face2face etc
-    p.add_argument('--cuda', action='store_true')
+    p.add_argument('--dest_dir', '-dest', type=str, 
+        default="/data2/paarth/DeepFakeDataset/manipulated_test_sequences/")
     
 
     args = p.parse_args()
     
     data_dir_path = args.data_dir
     dest_dir_path = args.dest_dir
-    compress = args.compress
-    cuda_run = args.cuda
-
-    test_pair_list = json.loads("test_split.json")
+    
+    with open("test_split.json") as f:
+        test_pair_list = json.loads(f.read())
     test_file_name_list = [ "{}_{}.mp4".format(pair[0], pair[1]) for pair in test_pair_list   ]
 
     fake_methods = ["Face2Face", "FaceSwap", "NeuralTextures"]
@@ -39,12 +33,13 @@ def main():
         for compression_level in compression_levels:
             
             input_folder_path = join(data_dir_path, fake_method, compression_level, "videos")
-            if not os.path.isdir(input_folder_path)
+            if not os.path.isdir(input_folder_path):
                 print ("Did not find input directory:", input_folder_path)
                 continue
             
+            print("Copying", fake_method, compression_level)
             # create destination directory if it does not exist
-            dest_folder_path = join(dest_dir_path, fake_methods, compression_levels, "videos")
+            dest_folder_path = join(dest_dir_path, fake_method, compression_level, "videos")
             if not os.path.isdir(dest_folder_path):
                 os.makedirs(dest_folder_path)
 
