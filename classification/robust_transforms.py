@@ -59,11 +59,11 @@ def translate_image(image, shift_x = 20, shift_y = 20, cuda=True):
 
   image_size = list(image.size())
   image_size = image_size[2:]
-  # the source points are the region to crop corners
+  
 
 
   
-  h, w = image_size[0], image_size[1]  # destination size
+  h, w = image_size[0], image_size[1]  
 
 
   #because height indexed from zero
