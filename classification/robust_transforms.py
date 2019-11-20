@@ -55,7 +55,7 @@ def gaussian_blur(image,kernel_size=(11,11),sigma=(10.5, 10.5),cuda=True):
   return img_blur
 
 
-def warp_image(image,cuda=True):
+def translate_image(image, shift_x = 20, shift_y = 20, cuda=True):
 
   image_size = list(image.size())
   image_size = image_size[2:]
@@ -73,8 +73,11 @@ def warp_image(image,cuda=True):
 
   # the destination points are the image vertexes
   points_dst = torch.FloatTensor([[
-    [20, 0], [w-1+20, 0], [w-1+20, h-1], [20, h-1],]])
+    [0 + shift_x, 0 + shift_y], [w-1+shift_x, 0 + shift_y], [w-1+shift_x, h-1 + shift_y], [0 + shift_x, h-1 + shift_y],]])
 
+  if cuda:
+    points_src = points_src.cuda()
+    points_dst = points_dst.cuda()
   # compute perspective transform
   M = tgm.get_perspective_transform(points_src, points_dst)
 

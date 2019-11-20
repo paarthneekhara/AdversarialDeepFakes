@@ -2,6 +2,7 @@ from torch import autograd
 import torch
 import torch.nn as nn
 from dataset.transform import xception_default_data_transforms
+import robust_transforms as rt
 
 def predict_with_model(preprocessed_image, model, post_function=nn.Softmax(dim=1), cuda=True):
     """
@@ -28,10 +29,88 @@ def predict_with_model(preprocessed_image, model, post_function=nn.Softmax(dim=1
     # Cast to desired
     _, prediction = torch.max(output, 1)    # argmax
     prediction = float(prediction.cpu().numpy())
-    # print ("prediction", prediction)
-    # print ("output", output)
+    print ("prediction", prediction)
+    print ("output", output)
     return int(prediction), output, logits
 
+
+def robust_fgsm(input_img, model, cuda = True, max_iter = 100, alpha = 1/255.0, eps = 16/255.0, desired_acc = 0.7):
+
+
+    def _get_transforms():
+        return [
+            lambda x: x,
+            lambda x: rt.add_gaussian_noise(x, 0.01, cuda = cuda),
+            # lambda x: rt.add_gaussian_noise(x, 0.02, cuda = cuda),
+            lambda x: rt.gaussian_blur(x, kernel_size = (7, 7), sigma=(5.0, 5.0), cuda = cuda),
+            lambda x: rt.gaussian_blur(x, kernel_size = (5, 5), sigma=(10.5, 10.5), cuda = cuda),
+            # lambda x: rt.gaussian_blur(x, kernel_size = (11, 11), sigma=(10.5, 10.5), cuda = cuda),
+            # lambda x: rt.gaussian_blur(x, kernel_size = (11, 11), sigma=(5.0, 5.0), cuda = cuda),
+            lambda x: rt.translate_image(x, 10, 10, cuda = cuda),
+            lambda x: rt.translate_image(x, 10, -10, cuda = cuda),
+            lambda x: rt.translate_image(x, -10, 10, cuda = cuda),
+            lambda x: rt.translate_image(x, -10, -10, cuda = cuda),
+            lambda x: rt.translate_image(x, 20, 20, cuda = cuda),
+            lambda x: rt.translate_image(x, 20, -20, cuda = cuda),
+            lambda x: rt.translate_image(x, -20, 10, cuda = cuda),
+            lambda x: rt.translate_image(x, -20, -20, cuda = cuda),
+            lambda x: rt.compress_decompress(x, 0.1, cuda = cuda),
+            lambda x: rt.compress_decompress(x, 0.2, cuda = cuda),
+            lambda x: rt.compress_decompress(x, 0.3, cuda = cuda),
+        ]
+
+    input_var = autograd.Variable(input_img, requires_grad=True)
+
+    target_var = autograd.Variable(torch.LongTensor([0]))
+    if cuda:
+        target_var = target_var.cuda()
+
+    iter_no = 0
+    
+    loss_criterion = nn.CrossEntropyLoss()
+
+    while iter_no < max_iter:
+        transforms = _get_transforms()
+        loss = 0
+
+        all_fooled = True
+        print ("**** Applying Transforms ****")
+        for transform_fn in transforms:
+            transformed_img = transform_fn(input_var)
+            prediction, output, logits = predict_with_model(transformed_img, model, cuda=cuda)
+
+            if output[0][0] < desired_acc:
+                all_fooled = False
+            loss += torch.clamp( logits[0][1]-logits[0][0] + 10, min = 0.0)
+            # loss += loss_criterion(logits, target_var)
+
+        print ("*** Finished Transforms **, all fooled", all_fooled)
+        if all_fooled:
+            break
+
+        loss.backward()
+
+        step_adv = input_var.detach() - alpha * torch.sign(input_var.grad.detach())
+        total_pert = step_adv - input_img
+        total_pert = torch.clamp(total_pert, -eps, eps)
+        
+        input_adv = input_img + total_pert
+        input_adv = torch.clamp(input_adv, 0, 1)
+        
+        input_var.data = input_adv.detach()
+
+        iter_no += 1
+
+    l_inf_norm = torch.max(torch.abs((input_var - input_img))).item()
+    print ("L infinity norm", l_inf_norm, l_inf_norm * 255.0)
+    
+    meta_data = {
+        'attack_iterations' : iter_no,
+        'l_inf_norm' : l_inf_norm,
+        'l_inf_norm_255' : round(l_inf_norm * 255.0)
+    }
+
+    return input_var, meta_data
 
 def iterative_fgsm(input_img, model, cuda = True, max_iter = 100, alpha = 1/255.0, eps = 16/255.0, desired_acc = 0.99):
     input_var = autograd.Variable(input_img, requires_grad=True)
