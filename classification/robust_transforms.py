@@ -25,13 +25,13 @@ def compress_decompress(image,factor,cuda=True):
 
 
 
-def add_gaussian_noise(image,amount,cuda=True):
+def add_gaussian_noise(image,std,cuda=True):
   # :param image: tensor image
   # :param amount: amount of noise to be added
   # :param cuda: enables cuda, must be the same parameter as the model
 
 
-  new_image = image + amount*torch.randn_like(image)
+  new_image = image + std*torch.randn_like(image)
   new_image = torch.clamp(new_image, min=0, max=1)
 
   return new_image
