@@ -19,10 +19,13 @@ def main():
     p = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-    p.add_argument('--model_dir', '-mdir', type=str, default=None) #dir contains all_c23.p etc
-    p.add_argument('--model_type', '-mtype', type=str, default="c23") #c23, c40 or raw
-    p.add_argument('--data_dir', '-data', type=str, default=None) # dir containing face2face etc
-    p.add_argument('--exp_folder', '-exp', type=str, default=None) # where sub directories will be created
+    p.add_argument('--model_dir', '-mdir', type=str, 
+        default="/data2/paarth/faceforensics++_models_subset/face_detection/xception") #dir contains all_c23.p etc
+    p.add_argument('--data_dir', '-data', type=str, 
+        default="/data2/paarth/DeepFakeDataset/manipulated_sequences/") # dir containing face2face etc
+    p.add_argument('--exp_folder', '-exp', type=str, 
+        default="/data2/paarth/DFExperiments") # where sub directories will be created
+    p.add_argument('--model_type', '-mtype', type=str, default=None) #c23, c40 or raw
     p.add_argument('--faketype', type=str, default=None) # face2face, neural textures etc
     p.add_argument('--attack', '-a', type=str, default="iterative_fgsm")
     p.add_argument('--compress', action='store_true')
@@ -39,10 +42,15 @@ def main():
     compress = args.compress
     cuda_run = args.cuda
 
+    assert attack_type in ["iterative_fgsm", "robust", "carlini_wagner"]
+    assert fake_dir in ["Deepfakes", "Face2Face", "FaceSwap", "NeuralTextures"]
+    assert model_type in ["c23", "c40", "raw"]
 
     input_folder_path = join(data_dir_path,fake_dir,model_type,"videos")
+    assert os.path.isdir(input_folder_path)
 
     model_path = join(model_dir,"all_{}.p".format(model_type))
+    assert os.path.exists(model_path)
 
     adversarial_folder_path = join(experiment_path,fake_dir,model_type,"adv_{}".format(attack_type))
 
@@ -70,8 +78,16 @@ def main():
     if cuda_run:
         string_command_detect += " --cuda"
 
-    os.system(string_command_attack) 
+    
+    print (">>>>>>>>>>>>>>>>>>>>>>>>Starting Attack")
+    print(string_command_attack)
+    os.system(string_command_attack)
+    print ("<<<<<<<<<<<<<<<<<<<<<<<<<Attack Done") 
+    
+    print (">>>>>>>>>>>>>>>>>>>>>>>>Starting Detection")
+    print(string_command_detect)
     os.system(string_command_detect)
+    print ("Done")
 
 
 if __name__ == '__main__':
