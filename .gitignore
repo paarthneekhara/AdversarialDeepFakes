@@ -1,4 +1,5 @@
 *__pycache__
+*experiment_log_temp.txt
 *.pyc
 *sanity.py
 *.DS_Store

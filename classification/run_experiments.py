@@ -80,13 +80,14 @@ def main():
         os.makedirs(detected_folder_path)
 
 
-    print (">>>>>>>>>>>>>>>>>>>>>>>>Starting Attack")
+    print (">>>>>>>>>>>>>>>>>>>>>>>> Starting Experiment")
     videos = os.listdir(input_folder_path)
     videos = [ video for video in videos if (video.endswith(".mp4") or video.endswith(".avi")) ]
-    pbar_attack = tqdm(total=len(videos))
+    pbar_global = tqdm(total=len(videos))
     for video in videos:
         video_path = join(input_folder_path, video)
         blockPrint()
+        # Attack
         attack.create_adversarial_video(
             video_path = video_path,
             model_path = model_path,
@@ -98,20 +99,11 @@ def main():
             cuda = cuda,
             showlabel = False
             )
-        enablePrint()
-        pbar_attack.update(1)
-    pbar_attack.close()
-    print ("<<<<<<<<<<<<<<<<<<<<<<<<<Attack Done") 
-    
-    print (">>>>>>>>>>>>>>>>>>>>>>>>Starting Detection")
-    videos = os.listdir(adversarial_folder_path)
-    videos = [ video for video in videos if (video.endswith(".mp4") or video.endswith(".avi")) ]
-    pbar_detect = tqdm(total=len(videos))
-    for video in videos:
-        video_path = join(adversarial_folder_path, video)
-        blockPrint()
+
+        # Detect
+        adv_video_path = join(adversarial_folder_path, video.replace(".mp4", ".avi"))
         detect_from_video.test_full_image_network(
-            video_path = video_path,
+            video_path = adv_video_path,
             model_path = model_path,
             output_path = detected_folder_path,
             start_frame = 0,
@@ -119,8 +111,10 @@ def main():
             cuda = cuda
             )
         enablePrint()
-        pbar_detect.update(1)
-    pbar_detect.close()
+        pbar_global.update(1)
+    pbar_global.close()
+    print ("<<<<<<<<<<<<<<<<<<<<<<<<< Experiment Done") 
+    
 
 if __name__ == '__main__':
     main()
