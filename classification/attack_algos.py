@@ -1,10 +1,10 @@
 from torch import autograd
 import torch
 import torch.nn as nn
-from dataset.transform import xception_default_data_transforms
+from dataset.transform import xception_default_data_transforms, mesonet_default_data_transforms
 import robust_transforms as rt
 
-def predict_with_model(preprocessed_image, model, post_function=nn.Softmax(dim=1), cuda=True):
+def predict_with_model(preprocessed_image, model, model_type, post_function=nn.Softmax(dim=1), cuda=True):
     """
     Adapted predict_for_model for attack. Differentiable image pre-processing.
     Predicts the label of an input image. Performs resizing and normalization before feeding in image.
@@ -19,8 +19,13 @@ def predict_with_model(preprocessed_image, model, post_function=nn.Softmax(dim=1
     # Model prediction
 
     # differentiable resizing: doing resizing here instead of preprocessing
-    resized_image = nn.functional.interpolate(preprocessed_image, size = (299, 299), mode = "bilinear", align_corners = True)
-    norm_transform = xception_default_data_transforms['normalize']
+    if model_type == "xception":
+        resized_image = nn.functional.interpolate(preprocessed_image, size = (299, 299), mode = "bilinear", align_corners = True)
+        norm_transform = xception_default_data_transforms['normalize']
+    elif model_type == "meso":
+        resized_image = nn.functional.interpolate(preprocessed_image, size = (256, 256), mode = "bilinear", align_corners = True)
+        norm_transform = mesonet_default_data_transforms['normalize']
+    
     normalized_image = norm_transform(resized_image)
     
     logits = model(normalized_image)
@@ -34,7 +39,7 @@ def predict_with_model(preprocessed_image, model, post_function=nn.Softmax(dim=1
     return int(prediction), output, logits
 
 
-def robust_fgsm(input_img, model, cuda = True, 
+def robust_fgsm(input_img, model, model_type, cuda = True, 
     max_iter = 100, alpha = 1/255.0, 
     eps = 16/255.0, desired_acc = 0.9,
     transform_set = {"gauss_noise", "gauss_blur", "translation", "resize"}
@@ -102,7 +107,7 @@ def robust_fgsm(input_img, model, cuda = True,
         for transform_fn in transform_functions:
             
             transformed_img = transform_fn(input_var)
-            prediction, output, logits = predict_with_model(transformed_img, model, cuda=cuda)
+            prediction, output, logits = predict_with_model(transformed_img, model, model_type, cuda=cuda)
 
             if output[0][0] < desired_acc:
                 all_fooled = False
@@ -140,7 +145,7 @@ def robust_fgsm(input_img, model, cuda = True,
 
     return input_var, meta_data
 
-def iterative_fgsm(input_img, model, cuda = True, max_iter = 100, alpha = 1/255.0, eps = 16/255.0, desired_acc = 0.99):
+def iterative_fgsm(input_img, model, model_type, cuda = True, max_iter = 100, alpha = 1/255.0, eps = 16/255.0, desired_acc = 0.99):
     input_var = autograd.Variable(input_img, requires_grad=True)
 
     target_var = autograd.Variable(torch.LongTensor([0]))
@@ -150,7 +155,7 @@ def iterative_fgsm(input_img, model, cuda = True, max_iter = 100, alpha = 1/255.
     iter_no = 0
     
     while iter_no < max_iter:
-        prediction, output, logits = predict_with_model(input_var, model, cuda=cuda)    
+        prediction, output, logits = predict_with_model(input_var, model, model_type, cuda=cuda)    
         if (output[0][0] - output[0][1]) > desired_acc:
             break
             
@@ -183,7 +188,7 @@ def iterative_fgsm(input_img, model, cuda = True, max_iter = 100, alpha = 1/255.
     return input_var, meta_data
 
 
-def carlini_wagner_attack(input_img, model, cuda = True, 
+def carlini_wagner_attack(input_img, model, model_type, cuda = True, 
     max_attack_iter = 500, alpha = 0.005, 
     const = 1e-3, max_bs_iter = 5, confidence = 20.0):
     
@@ -203,7 +208,7 @@ def carlini_wagner_attack(input_img, model, cuda = True,
     for bsi in range(max_bs_iter):
         for iter_no in range(max_attack_iter):
             adv_image = 0.5 * ( torch.tanh(input_img + attack_w) + 1. )
-            prediction, output, logits = predict_with_model(adv_image, model, cuda=cuda)
+            prediction, output, logits = predict_with_model(adv_image, model, model_type, cuda=cuda)
             loss1 = torch.clamp( logits[0][1]-logits[0][0] + confidence, min = 0.0)
             loss2 = torch.norm(adv_image - input_img, 2)
 
