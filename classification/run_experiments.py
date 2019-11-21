@@ -2,10 +2,22 @@
 Author: Shehzeen Hussain
 """
 
-import os
+import os, sys
 import argparse
 from os.path import join
 import numpy
+import attack
+import detect_from_video
+from tqdm import tqdm
+
+# Disable
+def blockPrint():
+    sys.stdout = open(os.devnull, 'w')
+
+# Restore
+def enablePrint():
+    sys.stdout = sys.__stdout__
+
 
 def main():
     """
@@ -25,7 +37,7 @@ def main():
         default="/data2/paarth/DeepFakeDataset/manipulated_test_sequences/") # dir containing face2face etc
     p.add_argument('--exp_folder', '-exp', type=str, 
         default="/data2/paarth/DFExperiments") # where sub directories will be created
-    p.add_argument('--model_type', '-mtype', type=str, default=None) #c23, c40 or raw
+    p.add_argument('--model_type', '-mtype', type=str, default="c23") #c23, c40 or raw
     p.add_argument('--faketype', type=str, default=None) # face2face, neural textures etc
     p.add_argument('--attack', '-a', type=str, default="iterative_fgsm")
     p.add_argument('--compress', action='store_true')
@@ -40,7 +52,7 @@ def main():
     attack_type = args.attack
     data_dir_path = args.data_dir
     compress = args.compress
-    cuda_run = args.cuda
+    cuda = args.cuda
 
     assert attack_type in ["iterative_fgsm", "robust", "carlini_wagner"]
     assert fake_dir in ["Deepfakes", "Face2Face", "FaceSwap", "NeuralTextures"]
@@ -68,30 +80,47 @@ def main():
         os.makedirs(detected_folder_path)
 
 
-    string_command_attack = "python3 attack.py -i {} -mi {} -o {}".format(input_folder_path,model_path,adversarial_folder_path)
-
-    if cuda_run:
-        string_command_attack += " --cuda"
-
-    if compress:
-        string_command_attack += " --compress"
-
-    string_command_detect = "python3 detect_from_video.py -i {} -mi {} -o {}".format(adversarial_folder_path,model_path,detected_folder_path)
-
-    if cuda_run:
-        string_command_detect += " --cuda"
-
-
     print (">>>>>>>>>>>>>>>>>>>>>>>>Starting Attack")
-    print(string_command_attack)
-    os.system(string_command_attack)
+    videos = os.listdir(input_folder_path)
+    videos = [ video for video in videos if (video.endswith(".mp4") or video.endswith(".avi")) ]
+    pbar_attack = tqdm(total=len(videos))
+    for video in videos:
+        video_path = join(input_folder_path, video)
+        blockPrint()
+        attack.create_adversarial_video(
+            video_path = video_path,
+            model_path = model_path,
+            output_path = adversarial_folder_path,
+            start_frame = 0,
+            end_frame = None,
+            attack = attack_type,
+            compress = compress,
+            cuda = cuda,
+            showlabel = False
+            )
+        enablePrint()
+        pbar_attack.update(1)
+    pbar_attack.close()
     print ("<<<<<<<<<<<<<<<<<<<<<<<<<Attack Done") 
     
     print (">>>>>>>>>>>>>>>>>>>>>>>>Starting Detection")
-    print(string_command_detect)
-    os.system(string_command_detect)
-    print ("Done")
-
+    videos = os.listdir(adversarial_folder_path)
+    videos = [ video for video in videos if (video.endswith(".mp4") or video.endswith(".avi")) ]
+    pbar_detect = tqdm(total=len(videos))
+    for video in videos:
+        video_path = join(adversarial_folder_path, video)
+        blockPrint()
+        detect_from_video.test_full_image_network(
+            video_path = video_path,
+            model_path = model_path,
+            output_path = detected_folder_path,
+            start_frame = 0,
+            end_frame = None,
+            cuda = cuda
+            )
+        enablePrint()
+        pbar_detect.update(1)
+    pbar_detect.close()
 
 if __name__ == '__main__':
     main()

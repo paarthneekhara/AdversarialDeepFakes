@@ -10,7 +10,7 @@ python detect_from_video.py
 
 Author: Andreas Rössler
 """
-import os
+import os, sys
 import argparse
 from os.path import join
 import cv2
@@ -23,6 +23,11 @@ from tqdm import tqdm
 from network.models import model_selection
 from dataset.transform import xception_default_data_transforms
 import json
+
+
+# I don't recommend this, but I like clean terminal output.
+import warnings
+warnings.filterwarnings("ignore")
 
 def get_boundingbox(face, width, height, scale=1.3, minsize=None):
     """
@@ -245,6 +250,13 @@ def test_full_image_network(video_path, model_path, output_path,
     else:
         print('Input video file was empty')
 
+# Disable
+def blockPrint():
+    sys.stdout = open(os.devnull, 'w')
+
+# Restore
+def enablePrint():
+    sys.stdout = sys.__stdout__
 
 if __name__ == '__main__':
     p = argparse.ArgumentParser(
@@ -263,6 +275,18 @@ if __name__ == '__main__':
         test_full_image_network(**vars(args))
     else:
         videos = os.listdir(video_path)
+        videos = [ video for video in videos if (video.endswith(".mp4") or video.endswith(".avi")) ]
+        pbar_global = tqdm(total=len(videos))
         for video in videos:
             args.video_path = join(video_path, video)
-            test_full_image_network(**vars(args))
+            failed = False
+            blockPrint()
+            try:
+                test_full_image_network(**vars(args))
+            except:
+                failed = True
+            enablePrint()
+            pbar_global.update(1)
+            if failed:
+                print ("Failed to detect for video", video)
+        pbar_global.close()

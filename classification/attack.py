@@ -1,5 +1,5 @@
 """
-Create adversarial video that fools xceptionnet.
+Create adversarial videos that can fool xceptionnet.
 
 Usage:
 python attack.py
@@ -10,7 +10,7 @@ python attack.py
 built upon the code by Andreas Rössler for detecting deep fakes.
 """
 
-import os
+import sys, os
 import argparse
 from os.path import join
 import cv2
@@ -27,6 +27,11 @@ import numpy
 from torchvision import transforms
 import attack_algos
 import json
+
+# I don't recommend this, but I like clean terminal output.
+import warnings
+warnings.filterwarnings("ignore")
+
 
 def get_boundingbox(face, width, height, scale=1.3, minsize=None):
     """
@@ -312,6 +317,14 @@ def create_adversarial_video(video_path, model_path, output_path,
         print('Input video file was empty')
 
 
+# Disable
+def blockPrint():
+    sys.stdout = open(os.devnull, 'w')
+
+# Restore
+def enablePrint():
+    sys.stdout = sys.__stdout__
+
 if __name__ == '__main__':
     p = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -332,7 +345,13 @@ if __name__ == '__main__':
     if video_path.endswith('.mp4') or video_path.endswith('.avi'):
         create_adversarial_video(**vars(args))
     else:
+
         videos = os.listdir(video_path)
+        pbar_global = tqdm(total=len(videos))
         for video in videos:
             args.video_path = join(video_path, video)
+            blockPrint()
             create_adversarial_video(**vars(args))
+            enablePrint()
+            pbar_global.update(1)
+        pbar_global.close()
