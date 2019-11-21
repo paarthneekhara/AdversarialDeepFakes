@@ -43,6 +43,9 @@ def return_pytorch04_xception(pretrained=True):
         del model.fc
     return model
 
+def return_pytorch04_meso():
+    model = Meso4()
+    return model
 
 class TransferModel(nn.Module):
     """
@@ -140,6 +143,10 @@ def model_selection(modelname, num_out_classes,
         return TransferModel(modelchoice='resnet18', dropout=dropout,
                              num_out_classes=num_out_classes), \
                224, True, ['image'], None
+
+    elif modelname == "meso":
+        print("Returning meso model")
+        return return_pytorch04_meso(), 256, False, ['image'], None
     else:
         raise NotImplementedError(modelname)
 

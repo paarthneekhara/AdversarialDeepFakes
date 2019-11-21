@@ -21,7 +21,7 @@ from PIL import Image as pil_image
 from tqdm import tqdm
 
 from network.models import model_selection
-from dataset.transform import xception_default_data_transforms
+from dataset.transform import xception_default_data_transforms, mesonet_default_data_transforms
 import json
 
 
@@ -59,7 +59,7 @@ def get_boundingbox(face, width, height, scale=1.3, minsize=None):
     return x1, y1, size_bb
 
 
-def preprocess_image(image, cuda=True):
+def preprocess_image(image, model_type, cuda=True):
     """
     Preprocesses the image such that it can be fed into our network.
     During this process we envoke PIL to cast it into a PIL image.
@@ -72,7 +72,11 @@ def preprocess_image(image, cuda=True):
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     # Preprocess using the preprocessing function used during training and
     # casting it to PIL image
-    preprocess = xception_default_data_transforms['test']
+    if model_type == "xception":
+        preprocess = xception_default_data_transforms['test']
+    elif model_type == "meso":
+        preprocess = mesonet_default_data_transforms['test']
+
     preprocessed_image = preprocess(pil_image.fromarray(image))
     # Add first dimension as the network expects a batch
     preprocessed_image = preprocessed_image.unsqueeze(0)
@@ -81,7 +85,7 @@ def preprocess_image(image, cuda=True):
     return preprocessed_image
 
 
-def predict_with_model(image, model, post_function=nn.Softmax(dim=1),
+def predict_with_model(image, model, model_type, post_function=nn.Softmax(dim=1),
                        cuda=True):
     """
     Predicts the label of an input image. Preprocesses the input image and
@@ -94,8 +98,8 @@ def predict_with_model(image, model, post_function=nn.Softmax(dim=1),
     :return: prediction (1 = fake, 0 = real)
     """
     # Preprocess
-    preprocessed_image = preprocess_image(image, cuda)
-
+    preprocessed_image = preprocess_image(image, model_type, cuda)
+    
     # Model prediction
     output = model(preprocessed_image)
     output = post_function(output)
@@ -107,7 +111,7 @@ def predict_with_model(image, model, post_function=nn.Softmax(dim=1),
     return int(prediction), output
 
 
-def test_full_image_network(video_path, model_path, output_path,
+def test_full_image_network(video_path, model_path, model_type, output_path,
                             start_frame=0, end_frame=None, cuda=True):
     """
     Reads a video and evaluates a subset of frames with the a detection network
@@ -137,7 +141,7 @@ def test_full_image_network(video_path, model_path, output_path,
     face_detector = dlib.get_frontal_face_detector()
 
     # Load model
-    model, *_ = model_selection(modelname='xception', num_out_classes=2)
+    # model, *_ = model_selection(modelname='xception', num_out_classes=2)
     if model_path is not None:
         if not cuda:
             model = torch.load(model_path, map_location = "cpu")
@@ -202,7 +206,7 @@ def test_full_image_network(video_path, model_path, output_path,
             cropped_face = image[y:y+size, x:x+size]
 
             # Actual prediction using our model
-            prediction, output = predict_with_model(cropped_face, model,
+            prediction, output = predict_with_model(cropped_face, model, model_type,
                                                     cuda=cuda)
             # ------------------------------------------------------------------
 
@@ -263,6 +267,7 @@ if __name__ == '__main__':
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     p.add_argument('--video_path', '-i', type=str)
     p.add_argument('--model_path', '-mi', type=str, default=None)
+    p.add_argument('--model_type', '-mt', type=str, default="xception")
     p.add_argument('--output_path', '-o', type=str,
                    default='.')
     p.add_argument('--start_frame', type=int, default=0)

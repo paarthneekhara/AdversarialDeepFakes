@@ -32,12 +32,14 @@ def main():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     p.add_argument('--model_dir', '-mdir', type=str, 
-        default="/data2/paarth/faceforensics++_models_subset/face_detection/xception") #dir contains all_c23.p etc
+        default="/data2/paarth/faceforensics++_models_subset/face_detection/") #dir contains xception, meso
+    p.add_argument('--model_type', '-mtype', type=str, 
+        default="xception") #dir contains all_c23.p etc
     p.add_argument('--data_dir', '-data', type=str, 
         default="/data2/paarth/DeepFakeDataset/manipulated_test_sequences/") # dir containing face2face etc
     p.add_argument('--exp_folder', '-exp', type=str, 
         default="/data2/paarth/DFExperiments") # where sub directories will be created
-    p.add_argument('--model_type', '-mtype', type=str, default="c23") #c23, c40 or raw
+    p.add_argument('--compression_type', '-ctype', type=str, default="c23") #c23, c40 or raw
     p.add_argument('--faketype', type=str, default=None) # face2face, neural textures etc
     p.add_argument('--attack', '-a', type=str, default="iterative_fgsm")
     p.add_argument('--compress', action='store_true')
@@ -47,8 +49,9 @@ def main():
     args = p.parse_args()
     experiment_path = args.exp_folder
     fake_dir = args.faketype
-    model_type = args.model_type
+    compression_type = args.compression_type
     model_dir = args.model_dir
+    model_type = args.model_type
     attack_type = args.attack
     data_dir_path = args.data_dir
     compress = args.compress
@@ -56,17 +59,23 @@ def main():
 
     assert attack_type in ["iterative_fgsm", "robust", "carlini_wagner"]
     assert fake_dir in ["Deepfakes", "Face2Face", "FaceSwap", "NeuralTextures"]
-    assert model_type in ["c23", "c40", "raw"]
+    assert compression_type in ["c23", "c40", "raw"]
+    assert model_type in ["xception", "meso"]
 
-    input_folder_path = join(data_dir_path,fake_dir,model_type,"videos")
+    input_folder_path = join(data_dir_path,fake_dir,compression_type,"videos")
     assert os.path.isdir(input_folder_path)
 
-    model_path = join(model_dir,"all_{}.p".format(model_type))
+    if model_type == "xception":
+        model_path = join(model_dir, "xception", "all_{}.p".format(compression_type))
+
+    elif model_type == "meso":
+        model_path = join(model_dir, "Meso", "Meso4_deepfake.pkl")        
+
     assert os.path.exists(model_path)
 
-    adversarial_folder_path = join(experiment_path,fake_dir,model_type,"adv_{}".format(attack_type))
+    adversarial_folder_path = join(experiment_path, model_type, fake_dir,compression_type,"adv_{}".format(attack_type))
 
-    detected_folder_path = join(experiment_path,fake_dir,model_type,"adv_{}_detected".format(attack_type))
+    detected_folder_path = join(experiment_path, model_type, fake_dir,compression_type,"adv_{}_detected".format(attack_type))
 
     if compress:
         adversarial_folder_path += "_compressed"
@@ -91,6 +100,7 @@ def main():
         attack.create_adversarial_video(
             video_path = video_path,
             model_path = model_path,
+            model_type = model_type,
             output_path = adversarial_folder_path,
             start_frame = 0,
             end_frame = None,
@@ -105,6 +115,7 @@ def main():
         detect_from_video.test_full_image_network(
             video_path = adv_video_path,
             model_path = model_path,
+            model_type = model_type,
             output_path = detected_folder_path,
             start_frame = 0,
             end_frame = None,

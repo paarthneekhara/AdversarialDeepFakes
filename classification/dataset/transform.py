@@ -68,3 +68,38 @@ xception_default_data_transforms = {
         UnNormalize([0.5] * 3, [0.5] * 3)
     ])
 }
+
+
+
+"""
+
+Author: Honggu Liu
+"""
+mesonet_default_data_transforms = {
+    'train': transforms.Compose([
+        transforms.Resize((256, 256)),
+        transforms.ToTensor(),
+        transforms.Normalize([0.5]*3, [0.5]*3)
+    ]),
+    'val': transforms.Compose([
+        transforms.Resize((256, 256)),
+        transforms.ToTensor(),
+        transforms.Normalize([0.5] * 3, [0.5] * 3)
+    ]),
+    'test': transforms.Compose([
+        transforms.Resize((256, 256)),
+        transforms.ToTensor(),
+        transforms.Normalize([0.5] * 3, [0.5] * 3)
+    ]),
+
+    # Added these transforms for attack
+    'to_tensor': transforms.Compose([
+        transforms.ToTensor(),
+    ]),
+    'normalize': transforms.Compose([
+        Normalize([0.5] * 3, [0.5] * 3)
+    ]),
+    'unnormalize' : transforms.Compose([
+        UnNormalize([0.5] * 3, [0.5] * 3)
+    ])
+}
