@@ -28,7 +28,6 @@ def main():
 
     while True:
         # sleep for minute
-        time.sleep(10)
         for fake_type in fake_types:
             experiment_stats[fake_type] = {}
             for compression_type in compression_types:
@@ -89,7 +88,8 @@ def main():
                             with open(join(experiment_dir, "agg_exp_stats.json"), "w") as wf:
                                 wf.write(json.dumps(experiment_stats))
 
-    pprint.pprint(experiment_stats)
+        pprint.pprint(experiment_stats)
+        time.sleep(10)
 
 
 
