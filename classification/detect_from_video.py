@@ -279,14 +279,8 @@ if __name__ == '__main__':
         pbar_global = tqdm(total=len(videos))
         for video in videos:
             args.video_path = join(video_path, video)
-            failed = False
             blockPrint()
-            try:
-                test_full_image_network(**vars(args))
-            except:
-                failed = True
+            test_full_image_network(**vars(args))
             enablePrint()
             pbar_global.update(1)
-            if failed:
-                print ("Failed to detect for video", video)
         pbar_global.close()
