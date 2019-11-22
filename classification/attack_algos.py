@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 from dataset.transform import xception_default_data_transforms, mesonet_default_data_transforms
 import robust_transforms as rt
+import random
 
 def predict_with_model(preprocessed_image, model, model_type, post_function=nn.Softmax(dim=1), cuda=True):
     """
@@ -261,24 +262,27 @@ def black_box_attack(input_img, model, model_type,
             ]
 
         if "gauss_blur" in apply_transforms:
+            kernel_size = random.randint(4, 8)
+            if kernel_size % 2 == 0:
+                kernel_size = kernel_size - 1
+            sigma = random.randint(5, 10)
             transform_list += [
-                lambda x: rt.gaussian_blur(x, kernel_size = (5, 5), sigma=(5., 5.), cuda = cuda),
-                lambda x: rt.gaussian_blur(x, kernel_size = (5, 5), sigma=(10., 10.), cuda = cuda),
+                lambda x: rt.gaussian_blur(x, kernel_size = (kernel_size, kernel_size), sigma=(sigma * 1., sigma * 1.), cuda = cuda)
             ]
 
         if "translation" in apply_transforms:
             # reduced transforms for blackbox
+            x_translate = random.randint(-20,20)
+            y_translate = random.randint(-20,20)
+            
             transform_list += [
-                lambda x: rt.translate_image(x, 10, 10, cuda = cuda),
-                lambda x: rt.translate_image(x, 10, -10, cuda = cuda),
-                lambda x: rt.translate_image(x, -20, 20, cuda = cuda),
-                lambda x: rt.translate_image(x, -20, -20, cuda = cuda),
+                lambda x: rt.translate_image(x, x_translate, y_translate, cuda = cuda),
             ]
 
         if "resize" in apply_transforms:
+            compression_factor = random.randint(3, 5)/10.0
             transform_list += [
-                lambda x: rt.compress_decompress(x, 0.2, cuda = cuda),
-                lambda x: rt.compress_decompress(x, 0.3, cuda = cuda),
+                lambda x: rt.compress_decompress(x, compression_factor, cuda = cuda),
             ]
 
         return transform_list
