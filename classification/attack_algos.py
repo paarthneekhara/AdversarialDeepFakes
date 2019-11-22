@@ -244,3 +244,54 @@ def carlini_wagner_attack(input_img, model, model_type, cuda = True,
         return adv_image, meta_data
 
 
+def black_box_attack(input_img, model, model_type, cuda = True, max_iter = 100, alpha = 1/255.0, eps = 16/255.0, desired_acc = 0.99):
+
+    def _find_nes_gradient(input_var, model, model_type, num_samples = 10, sigma = 0.001):
+
+        g = 0
+        for i in range(num_samples):
+            rand_noise = torch.randn_like(image)
+            img1 = input_var + sigma * rand_noise
+            img2 = input_var - sigma * rand_noise
+            prediction1, output1, logits1 = predict_with_model(img1, model, model_type, cuda=cuda)    
+            prediction2, output2, logits2 = predict_with_model(img2, model, model_type, cuda=cuda)
+            g = g + output[0][0] * rand_noise
+            g = g - output[0][0] * rand_noise
+
+        return (1./(2. * num_samples * sigma)) * g
+
+    input_var = autograd.Variable(input_img, requires_grad=True)
+
+    target_var = autograd.Variable(torch.LongTensor([0]))
+    if cuda:
+        target_var = target_var.cuda()
+
+    iter_no = 0
+    
+    while iter_no < max_iter:
+        prediction, output, logits = predict_with_model(input_var, model, model_type, cuda=cuda)    
+        if (output[0][0] - output[0][1]) > desired_acc:
+            break
+        
+        step_gradient_estimate = _find_nes_gradient(input_var, model, model_type)
+        step_adv = input_var.detach() + alpha * torch.sign(step_gradient_estimate.data.detach())
+        total_pert = step_adv - input_img
+        total_pert = torch.clamp(total_pert, -eps, eps)
+        
+        input_adv = input_img + total_pert
+        input_adv = torch.clamp(input_adv, 0, 1)
+        
+        input_var.data = input_adv.detach()
+
+        iter_no += 1
+
+    l_inf_norm = torch.max(torch.abs((input_var - input_img))).item()
+    print ("L infinity norm", l_inf_norm, l_inf_norm * 255.0)
+    
+    meta_data = {
+        'attack_iterations' : iter_no,
+        'l_inf_norm' : l_inf_norm,
+        'l_inf_norm_255' : round(l_inf_norm * 255.0)
+    }
+
+    return input_var, meta_data

@@ -256,6 +256,8 @@ def create_adversarial_video(video_path, model_path, model_type, output_path,
             # Attack happening here
             if attack == "iterative_fgsm":
                 perturbed_image, attack_meta_data = attack_algos.iterative_fgsm(processed_image, model, model_type, cuda)
+            elif attack == "black_box":
+                perturbed_image, attack_meta_data = attack_algos.black_box_attack(processed_image, model, model_type, cuda)
             elif attack == "robust":
                 perturbed_image, attack_meta_data = attack_algos.robust_fgsm(processed_image, model, model_type, cuda)
             elif attack == "carlini_wagner":
