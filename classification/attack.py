@@ -254,12 +254,22 @@ def create_adversarial_video(video_path, model_path, model_type, output_path,
             processed_image = preprocess_image(cropped_face, model_type, cuda = cuda)
             
             # Attack happening here
+
+            # white-box attacks
             if attack == "iterative_fgsm":
                 perturbed_image, attack_meta_data = attack_algos.iterative_fgsm(processed_image, model, model_type, cuda)
             elif attack == "robust":
                 perturbed_image, attack_meta_data = attack_algos.robust_fgsm(processed_image, model, model_type, cuda)
             elif attack == "carlini_wagner":
                 perturbed_image, attack_meta_data = attack_algos.carlini_wagner_attack(processed_image, model_type, model, cuda)
+
+            # black-box attacks
+            elif attack == "black_box":
+                perturbed_image, attack_meta_data = attack_algos.black_box_attack(processed_image, model, model_type, 
+                    cuda, transform_set={}, desired_acc = 0.99)
+            elif attack == "black_box_robust":
+                perturbed_image, attack_meta_data = attack_algos.black_box_attack(processed_image, model, 
+                    model_type, cuda, transform_set = {"gauss_blur", "translation"})
             
             # Undo the processing of xceptionnet, mesonet
             unpreprocessed_image = un_preprocess_image(perturbed_image, size)
