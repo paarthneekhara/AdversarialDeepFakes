@@ -34,14 +34,14 @@ def predict_with_model(preprocessed_image, model, model_type, post_function=nn.S
     # Cast to desired
     _, prediction = torch.max(output, 1)    # argmax
     prediction = float(prediction.cpu().numpy())
-    print ("prediction", prediction)
-    print ("output", output)
+    # print ("prediction", prediction)
+    # print ("output", output)
     return int(prediction), output, logits
 
 
 def robust_fgsm(input_img, model, model_type, cuda = True, 
     max_iter = 100, alpha = 1/255.0, 
-    eps = 16/255.0, desired_acc = 0.9,
+    eps = 16/255.0, desired_acc = 0.95,
     transform_set = {"gauss_noise", "gauss_blur", "translation", "resize"}
     ):
 
@@ -244,21 +244,75 @@ def carlini_wagner_attack(input_img, model, model_type, cuda = True,
         return adv_image, meta_data
 
 
-def black_box_attack(input_img, model, model_type, cuda = True, max_iter = 100, alpha = 1/255.0, eps = 16/255.0, desired_acc = 0.99):
+def black_box_attack(input_img, model, model_type, 
+    cuda = True, max_iter = 100, alpha = 1/255.0, 
+    eps = 16/255.0, desired_acc = 0.90, 
+    transform_set = {"gauss_blur", "translation"}):
 
-    def _find_nes_gradient(input_var, model, model_type, num_samples = 10, sigma = 0.001):
+    def _get_transforms(apply_transforms = {"gauss_noise", "gauss_blur", "translation", "resize"}):
+        
+        transform_list = [
+            lambda x: x,
+        ]
 
+        if "gauss_noise" in apply_transforms:
+            transform_list += [
+                lambda x: rt.add_gaussian_noise(x, 0.01, cuda = cuda),
+            ]
+
+        if "gauss_blur" in apply_transforms:
+            transform_list += [
+                lambda x: rt.gaussian_blur(x, kernel_size = (5, 5), sigma=(5., 5.), cuda = cuda),
+                lambda x: rt.gaussian_blur(x, kernel_size = (5, 5), sigma=(10., 10.), cuda = cuda),
+                lambda x: rt.gaussian_blur(x, kernel_size = (7, 7), sigma=(5., 5.), cuda = cuda),
+                lambda x: rt.gaussian_blur(x, kernel_size = (7, 7), sigma=(10., 10.), cuda = cuda),
+            ]
+
+        if "translation" in apply_transforms:
+            transform_list += [
+                lambda x: rt.translate_image(x, 10, 10, cuda = cuda),
+                lambda x: rt.translate_image(x, 10, -10, cuda = cuda),
+                lambda x: rt.translate_image(x, -10, 10, cuda = cuda),
+                lambda x: rt.translate_image(x, -10, -10, cuda = cuda),
+                lambda x: rt.translate_image(x, 20, 20, cuda = cuda),
+                lambda x: rt.translate_image(x, 20, -20, cuda = cuda),
+                lambda x: rt.translate_image(x, -20, 10, cuda = cuda),
+                lambda x: rt.translate_image(x, -20, -20, cuda = cuda),
+            ]
+
+        if "resize" in apply_transforms:
+            transform_list += [
+                lambda x: rt.compress_decompress(x, 0.1, cuda = cuda),
+                lambda x: rt.compress_decompress(x, 0.2, cuda = cuda),
+                lambda x: rt.compress_decompress(x, 0.3, cuda = cuda),
+            ]
+
+        return transform_list
+
+    def _find_nes_gradient(input_var, transform_functions, model, model_type, num_samples = 10, sigma = 0.001):
         g = 0
-        for i in range(num_samples):
-            rand_noise = torch.randn_like(image)
-            img1 = input_var + sigma * rand_noise
-            img2 = input_var - sigma * rand_noise
-            prediction1, output1, logits1 = predict_with_model(img1, model, model_type, cuda=cuda)    
-            prediction2, output2, logits2 = predict_with_model(img2, model, model_type, cuda=cuda)
-            g = g + output[0][0] * rand_noise
-            g = g - output[0][0] * rand_noise
+        _num_queries = 0
+        for sample_no in range(num_samples):
+            for transform_func in transform_functions:
+                rand_noise = torch.randn_like(input_var)
+                img1 = input_var + sigma * rand_noise
+                img2 = input_var - sigma * rand_noise
 
-        return (1./(2. * num_samples * sigma)) * g
+                prediction1, probs_1, _ = predict_with_model(transform_func(img1), model, model_type, cuda=cuda)
+
+                prediction2, probs_2, _ = predict_with_model(transform_func(img2), model, model_type, cuda=cuda)
+
+                _num_queries += 2
+                g = g + probs_1[0][0] * rand_noise
+                g = g - probs_2[0][0] * rand_noise
+                g = g.data.detach()
+
+                del rand_noise
+                del img1
+                del prediction1, probs_1
+                del prediction2, probs_2
+
+        return (1./(2. * num_samples * len(transform_functions) * sigma)) * g, _num_queries
 
     input_var = autograd.Variable(input_img, requires_grad=True)
 
@@ -268,12 +322,38 @@ def black_box_attack(input_img, model, model_type, cuda = True, max_iter = 100, 
 
     iter_no = 0
     
+    # give it a warm start by crafting by fooling without any transformations -> easier
+    warm_start_done = False
+    num_queries = 0
     while iter_no < max_iter:
-        prediction, output, logits = predict_with_model(input_var, model, model_type, cuda=cuda)    
-        if (output[0][0] - output[0][1]) > desired_acc:
+
+        if not warm_start_done:
+            _, output, _= predict_with_model(input_var, model, model_type, cuda=cuda)
+            num_queries += 1
+            if output[0][0] > desired_acc:
+                warm_start_done = True
+
+        if warm_start_done:
+            # choose all transform functions
+            transform_functions = _get_transforms(transform_set)
+        else:
+            transform_functions = _get_transforms({}) # returns identity function
+
+        all_fooled = True
+        print ("Testing transformation outputs", iter_no)
+        for transform_fn in transform_functions:
+            _, output, _= predict_with_model(transform_fn(input_var), model, model_type, cuda=cuda)
+            num_queries += 1
+            print (output)
+            if output[0][0] < desired_acc:
+                all_fooled = False
+        
+        print("All transforms fooled:", all_fooled, "Warm start done:", warm_start_done)
+        if warm_start_done and all_fooled:
             break
         
-        step_gradient_estimate = _find_nes_gradient(input_var, model, model_type)
+        step_gradient_estimate, _num_grad_calc_queries = _find_nes_gradient(input_var, transform_functions, model, model_type)
+        num_queries += _num_grad_calc_queries
         step_adv = input_var.detach() + alpha * torch.sign(step_gradient_estimate.data.detach())
         total_pert = step_adv - input_img
         total_pert = torch.clamp(total_pert, -eps, eps)
@@ -289,6 +369,7 @@ def black_box_attack(input_img, model, model_type, cuda = True, max_iter = 100, 
     print ("L infinity norm", l_inf_norm, l_inf_norm * 255.0)
     
     meta_data = {
+        'num_network_queries' : num_queries,
         'attack_iterations' : iter_no,
         'l_inf_norm' : l_inf_norm,
         'l_inf_norm_255' : round(l_inf_norm * 255.0)
