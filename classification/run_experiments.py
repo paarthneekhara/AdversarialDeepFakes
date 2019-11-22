@@ -40,6 +40,7 @@ def main():
     p.add_argument('--exp_folder', '-exp', type=str, 
         default="/data2/paarth/DFExperiments") # where sub directories will be created
     p.add_argument('--compression_type', '-ctype', type=str, default="c23") #c23, c40 or raw
+    p.add_argument('--num_videos', '-nv', type=int, default=None) #c23, c40 or raw
     p.add_argument('--faketype', type=str, default=None) # face2face, neural textures etc
     p.add_argument('--attack', '-a', type=str, default="iterative_fgsm")
     p.add_argument('--compress', action='store_true')
@@ -92,6 +93,10 @@ def main():
     print (">>>>>>>>>>>>>>>>>>>>>>>> Starting Experiment")
     videos = os.listdir(input_folder_path)
     videos = [ video for video in videos if (video.endswith(".mp4") or video.endswith(".avi")) ]
+    
+    if args.num_videos is not None:
+        videos = videos[:args.num_videos]
+    
     pbar_global = tqdm(total=len(videos))
     for video in videos:
         video_path = join(input_folder_path, video)

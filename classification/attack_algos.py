@@ -262,10 +262,10 @@ def black_box_attack(input_img, model, model_type,
             ]
 
         if "gauss_blur" in apply_transforms:
-            kernel_size = random.randint(4, 8)
+            kernel_size = random.randint(3,6)
             if kernel_size % 2 == 0:
                 kernel_size = kernel_size - 1
-            sigma = random.randint(5, 10)
+            sigma = random.randint(5, 7)
             transform_list += [
                 lambda x: rt.gaussian_blur(x, kernel_size = (kernel_size, kernel_size), sigma=(sigma * 1., sigma * 1.), cuda = cuda)
             ]
@@ -280,7 +280,7 @@ def black_box_attack(input_img, model, model_type,
             ]
 
         if "resize" in apply_transforms:
-            compression_factor = random.randint(3, 5)/10.0
+            compression_factor = random.randint(4, 6)/10.0
             transform_list += [
                 lambda x: rt.compress_decompress(x, compression_factor, cuda = cuda),
             ]
