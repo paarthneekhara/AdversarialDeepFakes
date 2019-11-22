@@ -264,20 +264,17 @@ def black_box_attack(input_img, model, model_type,
             transform_list += [
                 lambda x: rt.gaussian_blur(x, kernel_size = (5, 5), sigma=(5., 5.), cuda = cuda),
                 lambda x: rt.gaussian_blur(x, kernel_size = (5, 5), sigma=(10., 10.), cuda = cuda),
-                lambda x: rt.gaussian_blur(x, kernel_size = (7, 7), sigma=(5., 5.), cuda = cuda),
-                lambda x: rt.gaussian_blur(x, kernel_size = (7, 7), sigma=(10., 10.), cuda = cuda),
+                # lambda x: rt.gaussian_blur(x, kernel_size = (7, 7), sigma=(5., 5.), cuda = cuda),
+                # lambda x: rt.gaussian_blur(x, kernel_size = (7, 7), sigma=(10., 10.), cuda = cuda),
             ]
 
         if "translation" in apply_transforms:
+            # reduced transforms for blackbox
             transform_list += [
                 lambda x: rt.translate_image(x, 10, 10, cuda = cuda),
                 lambda x: rt.translate_image(x, 10, -10, cuda = cuda),
                 lambda x: rt.translate_image(x, -10, 10, cuda = cuda),
                 lambda x: rt.translate_image(x, -10, -10, cuda = cuda),
-                lambda x: rt.translate_image(x, 20, 20, cuda = cuda),
-                lambda x: rt.translate_image(x, 20, -20, cuda = cuda),
-                lambda x: rt.translate_image(x, -20, 10, cuda = cuda),
-                lambda x: rt.translate_image(x, -20, -20, cuda = cuda),
             ]
 
         if "resize" in apply_transforms:
@@ -289,7 +286,7 @@ def black_box_attack(input_img, model, model_type,
 
         return transform_list
 
-    def _find_nes_gradient(input_var, transform_functions, model, model_type, num_samples = 10, sigma = 0.001):
+    def _find_nes_gradient(input_var, transform_functions, model, model_type, num_samples = 50, sigma = 0.001):
         g = 0
         _num_queries = 0
         for sample_no in range(num_samples):
