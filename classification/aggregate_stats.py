@@ -22,7 +22,7 @@ def main():
     model_types = ["xception", "meso"]
     fake_types = ["Deepfakes", "Face2Face", "FaceSwap", "NeuralTextures"]
     compression_types = ["c23", "c40", "raw"]
-    attack_methods = ["robust", "iterative_fgsm", "carlini_wagner"]
+    attack_methods = ["robust", "iterative_fgsm", "carlini_wagner", "black_box", "black_box_robust"]
 
 
     experiment_stats = {}
