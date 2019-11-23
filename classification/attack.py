@@ -266,7 +266,7 @@ def create_adversarial_video(video_path, model_path, model_type, output_path,
             # black-box attacks
             elif attack == "black_box":
                 perturbed_image, attack_meta_data = attack_algos.black_box_attack(processed_image, model, model_type, 
-                    cuda, transform_set={}, desired_acc = 0.99)
+                    cuda, transform_set={}, desired_acc = 0.99999)
             elif attack == "black_box_robust":
                 perturbed_image, attack_meta_data = attack_algos.black_box_attack(processed_image, model, 
                     model_type, cuda, transform_set = {"gauss_blur", "translation", "resize"})
