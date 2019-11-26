@@ -27,7 +27,7 @@ def main():
         test_pair_list = json.loads(f.read())
     test_file_name_list = [ "{}_{}.mp4".format(pair[0], pair[1]) for pair in test_pair_list   ]
 
-    fake_methods = ["Face2Face", "FaceSwap", "NeuralTextures"]
+    fake_methods = ["Deepfakes", "Face2Face", "FaceSwap", "NeuralTextures"]
     compression_levels = ["c23", "c40", "raw"]
     for fake_method in fake_methods:
         for compression_level in compression_levels:
