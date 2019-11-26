@@ -98,6 +98,7 @@ def main():
         videos = videos[:args.num_videos]
     
     pbar_global = tqdm(total=len(videos))
+    failed_to_detect = []
     for video in videos:
         video_path = join(input_folder_path, video)
         blockPrint()
@@ -117,20 +118,29 @@ def main():
 
         # Detect
         adv_video_path = join(adversarial_folder_path, video.replace(".mp4", ".avi"))
-        detect_from_video.test_full_image_network(
-            video_path = adv_video_path,
-            model_path = model_path,
-            model_type = model_type,
-            output_path = detected_folder_path,
-            start_frame = 0,
-            end_frame = None,
-            cuda = cuda
-            )
+
+        try:
+            detect_from_video.test_full_image_network(
+                video_path = adv_video_path,
+                model_path = model_path,
+                model_type = model_type,
+                output_path = detected_folder_path,
+                start_frame = 0,
+                end_frame = None,
+                cuda = cuda
+                )
+        except:
+            failed_to_detect.append(video)
+
         enablePrint()
         pbar_global.update(1)
     pbar_global.close()
     print ("<<<<<<<<<<<<<<<<<<<<<<<<< Experiment Done") 
     
+    if len(failed_to_detect) > 0:
+        print ("Failed to Detect:")
+        for vid in failed_to_detect:
+            print (vid)
 
 if __name__ == '__main__':
     main()
