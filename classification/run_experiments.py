@@ -64,6 +64,7 @@ def main():
     assert model_type in ["xception", "meso"]
 
     input_folder_path = join(data_dir_path,fake_dir,compression_type,"videos")
+    print(input_folder_path)
     assert os.path.isdir(input_folder_path)
 
     if model_type == "xception":
