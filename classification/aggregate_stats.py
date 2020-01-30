@@ -84,7 +84,8 @@ def main():
                                             total_l_infnorm += frame_meta_data['l_inf_norm']
                                             total_frames += 1.
 
-                                attack_metrics['avg_linf_norm'] = total_l_infnorm/total_frames
+                                if total_frames > 0:
+                                    attack_metrics['avg_linf_norm'] = total_l_infnorm/total_frames
 
 
                                 experiment_stats[model_type][fake_type][compression_type]["{}{}".format(attack_method, extension)] = copy.copy(attack_metrics)
