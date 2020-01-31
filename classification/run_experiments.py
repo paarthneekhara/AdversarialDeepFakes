@@ -9,7 +9,7 @@ import numpy
 import attack
 import detect_from_video
 from tqdm import tqdm
-
+import convert_to_mjpeg
 # Disable
 def blockPrint():
     sys.stdout = open(os.devnull, 'w')
@@ -44,6 +44,7 @@ def main():
     p.add_argument('--faketype', type=str, default=None) # face2face, neural textures etc
     p.add_argument('--attack', '-a', type=str, default="iterative_fgsm")
     p.add_argument('--compress', action='store_true')
+    p.add_argument('--compress_and_detect', action='store_true')
     p.add_argument('--cuda', action='store_true')
     
 
@@ -104,23 +105,36 @@ def main():
         video_path = join(input_folder_path, video)
         blockPrint()
         # Attack
-        attack.create_adversarial_video(
-            video_path = video_path,
-            model_path = model_path,
-            model_type = model_type,
-            output_path = adversarial_folder_path,
-            start_frame = 0,
-            end_frame = None,
-            attack = attack_type,
-            compress = compress,
-            cuda = cuda,
-            showlabel = False
-            )
+        if not args.compress_and_detect:
+            print ("ATTACKING", video)
+            attack.create_adversarial_video(
+                video_path = video_path,
+                model_path = model_path,
+                model_type = model_type,
+                output_path = adversarial_folder_path,
+                start_frame = 0,
+                end_frame = None,
+                attack = attack_type,
+                compress = compress,
+                cuda = cuda,
+                showlabel = False
+                )
 
         # Detect
-        adv_video_path = join(adversarial_folder_path, video.replace(".mp4", ".avi"))
+        if args.compress_and_detect:
+            print ("COMPRESSING", video)
+            _video_path = join(adversarial_folder_path, video.replace(".mp4", ".avi"))
+            if not os.path.exists(_video_path):
+                continue
+            convert_to_mjpeg.convert_to_mjpeg(_video_path, adversarial_folder_path + "_compressed", save_frames = False)
+            adv_video_path = join(adversarial_folder_path + "_compressed", video.replace(".mp4", ".avi"))
+            if '_compressed' not in detected_folder_path:
+                detected_folder_path += "_compressed"
+        else:
+            adv_video_path = join(adversarial_folder_path.replace, video.replace(".mp4", ".avi"))
 
         try:
+            print ("DETECTING", video)
             detect_from_video.test_full_image_network(
                 video_path = adv_video_path,
                 model_path = model_path,
