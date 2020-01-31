@@ -62,7 +62,11 @@ def main():
 
                                 for detect_file in detect_json_files:
                                     with open(join(detected_videos_dir, detect_file)) as f:
-                                        _attack_metrics = json.loads(f.read())
+                                        try:
+                                            _attack_metrics = json.loads(f.read())
+                                        except:
+                                            print ("Error loading", detect_file)
+                                            continue
                                         attack_metrics['total_frames'] += _attack_metrics['total_frames']
 
                                         if _attack_metrics['percent_fake_frames'] < 0.5:
@@ -79,7 +83,10 @@ def main():
                                 total_frames = 0.0
                                 for attack_file in attack_json_files:
                                     with open(join(adv_videos_dir, attack_file)) as f:
-                                        _attack_metrics = json.loads(f.read())
+                                        try:
+                                            _attack_metrics = json.loads(f.read())
+                                        except:
+                                            continue
                                         for frame_meta_data in _attack_metrics['attack_meta_data']:
                                             total_l_infnorm += frame_meta_data['l_inf_norm']
                                             total_frames += 1.

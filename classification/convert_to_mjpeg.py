@@ -25,7 +25,7 @@ warnings.filterwarnings("ignore")
 
 
 def convert_to_mjpeg(video_path,  output_path,
-                            start_frame=0, end_frame=None):
+                            start_frame=0, end_frame=None, save_frames = True):
     """
     Saves a video as mjpeg
     """
@@ -35,13 +35,23 @@ def convert_to_mjpeg(video_path,  output_path,
     reader = cv2.VideoCapture(video_path)
 
     video_fn = video_path.split('/')[-1].split('.')[0]+'.avi'
-    metrics_file_source = video_path.replace(".avi", "_metrics_attack.json")
+    
+    if video_path.endswith(".avi"):
+        metrics_file_source = video_path.replace(".avi", "_metrics_attack.json")
+    elif video_path.endswith(".mp4"):
+        metrics_file_source = video_path.replace(".mp4", "_metrics_attack.json")
+    else:
+        raise Exception()
+
     metrics_fn = video_fn.replace(".avi", "_metrics_attack.json")
 
     os.makedirs(output_path, exist_ok=True)
-
+    if save_frames:
+        frame_dir = os.path.join(output_path, "frames")
+        os.makedirs(frame_dir, exist_ok=True)
 
     # if metrics exist for the source file, copy them to the dest folder
+
     if os.path.exists(metrics_file_source):
         with open(metrics_file_source) as sf:
             metrics = json.loads(sf.read())
@@ -74,8 +84,13 @@ def convert_to_mjpeg(video_path,  output_path,
         if writer is None:
             writer = cv2.VideoWriter(join(output_path, video_fn), fourcc, fps,
                                      (height, width)[::-1])
+
+        if save_frames and frame_num % 10 == 0:
+            cv2.imwrite(join(frame_dir, "frame_{}.jpg".format(frame_num)), image)
+
         writer.write(image)
         pbar.update(1)
+
     pbar.close()
 
     if writer is not None:
@@ -100,6 +115,7 @@ if __name__ == '__main__':
                    default='.')
     p.add_argument('--start_frame', type=int, default=0)
     p.add_argument('--end_frame', type=int, default=None)
+    p.add_argument('--save_frames', action='store_true')
     
     args = p.parse_args()
 
@@ -107,7 +123,7 @@ if __name__ == '__main__':
     if video_path.endswith('.mp4') or video_path.endswith('.avi'):
         convert_to_mjpeg(**vars(args))
     else:
-        videos = os.listdir(video_path)
+        videos = os.listdir(video_path) 
         videos = [ video for video in videos if (video.endswith(".mp4") or video.endswith(".avi")) ]
         pbar_global = tqdm(total=len(videos))
         for video in videos:
