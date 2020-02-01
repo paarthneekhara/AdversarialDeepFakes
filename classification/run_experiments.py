@@ -40,7 +40,8 @@ def main():
     p.add_argument('--exp_folder', '-exp', type=str, 
         default="/data2/paarth/DFExperiments") # where sub directories will be created
     p.add_argument('--compression_type', '-ctype', type=str, default="c23") #c23, c40 or raw
-    p.add_argument('--num_videos', '-nv', type=int, default=None) #c23, c40 or raw
+    p.add_argument('--num_videos', '-nv', type=int, default=None) #num videos
+    p.add_argument('--end_frame', '-ef', type=int, default=None) #c23, c40 or raw
     p.add_argument('--faketype', type=str, default=None) # face2face, neural textures etc
     p.add_argument('--attack', '-a', type=str, default="iterative_fgsm")
     p.add_argument('--compress', action='store_true')
@@ -113,7 +114,7 @@ def main():
                 model_type = model_type,
                 output_path = adversarial_folder_path,
                 start_frame = 0,
-                end_frame = None,
+                end_frame = args.end_frame,
                 attack = attack_type,
                 compress = compress,
                 cuda = cuda,
