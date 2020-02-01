@@ -132,7 +132,7 @@ def main():
             if '_compressed' not in detected_folder_path:
                 detected_folder_path += "_compressed"
         else:
-            adv_video_path = join(adversarial_folder_path.replace, video.replace(".mp4", ".avi"))
+            adv_video_path = join(adversarial_folder_path, video.replace(".mp4", ".avi"))
 
         try:
             print ("DETECTING", video)
