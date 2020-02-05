@@ -66,7 +66,7 @@ def convert_to_mjpeg(video_path,  output_path,
 
     # Frame numbers and length of output video
     frame_num = 0
-    assert start_frame < num_frames - 1
+    # assert start_frame < num_frames - 1
     end_frame = end_frame if end_frame else num_frames
     pbar = tqdm(total=end_frame-start_frame)
 
@@ -81,12 +81,31 @@ def convert_to_mjpeg(video_path,  output_path,
         
         # Image size
         height, width = image.shape[:2]
+        center = [int(height/2), int(width/2)]
+        
+        adj_y = 0.0
+        adj_x = 0.0
+        
+        center[0] = int(center[0] + adj_y * height)
+        center[1] = int(center[1] + adj_x * width)
+
+        vertical_span = 0.95 * height
+        horizontal_span = vertical_span * 1.35
+
+        b0 = center[0] - int(vertical_span/2)
+        b1 = center[0] + int(vertical_span/2)
+        b3 = center[1] - int(horizontal_span/2)
+        b4 = center[1] + int(horizontal_span/2)
+
+        cropped_img = image[b0:b1, b3:b4]
+
         if writer is None:
             writer = cv2.VideoWriter(join(output_path, video_fn), fourcc, fps,
                                      (height, width)[::-1])
 
         if save_frames and frame_num % 10 == 0:
             cv2.imwrite(join(frame_dir, "frame_{}.jpg".format(frame_num)), image)
+            cv2.imwrite(join(frame_dir, "cropped_frame_{}.jpg".format(frame_num)), cropped_img)
 
         writer.write(image)
         pbar.update(1)

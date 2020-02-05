@@ -27,11 +27,12 @@ def main():
 
     videos = [ video for video in videos if (video.endswith(".mp4") or video.endswith(".avi")) ]
     args.output_dir = args.input_dir + "_" + str(args.compression_factor)
+
     os.makedirs(args.output_dir, exist_ok=True)
 
     for video in videos:
         print ("Compressing", video)
-        subprocess.call(['ffmpeg', '-i', join(args.input_dir, video),  '-vcodec', 
+        subprocess.call(['ffmpeg', '-y', '-i', join(args.input_dir, video),  '-vcodec', 
             'libx264', '-crf', '{}'.format(args.compression_factor), join(args.output_dir, video.replace('.avi', '.mp4'))])
 
     if args.detect:

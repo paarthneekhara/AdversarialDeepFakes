@@ -37,10 +37,13 @@ def main():
                     experiment_stats[model_type][fake_type][compression_type] = {}
                     for attack_method in attack_methods:
                         
-                        for extension in ["", "_compressed"]:
+                        for extension in ["", "_compressed", "_23", "_30", "_40"]:
                             experiment_stats[model_type][fake_type][compression_type]["{}{}".format(attack_method, extension)] = {}
                             adv_videos_dir = join(experiment_dir, model_type, fake_type, compression_type, "adv_{}{}".format(attack_method, extension))
-                            detected_videos_dir = join(experiment_dir, model_type, fake_type, compression_type, "adv_{}_detected{}".format(attack_method, extension))
+                            if extension in ["_23", "_30", "_40"]:
+                                detected_videos_dir = join(experiment_dir, model_type, fake_type, compression_type, "adv_{}{}_detected".format(attack_method, extension))    
+                            else:
+                                detected_videos_dir = join(experiment_dir, model_type, fake_type, compression_type, "adv_{}_detected{}".format(attack_method, extension))
                             
                             if os.path.isdir(adv_videos_dir) and os.path.isdir(detected_videos_dir):
                                 attack_json_files = os.listdir(adv_videos_dir)
@@ -106,4 +109,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
