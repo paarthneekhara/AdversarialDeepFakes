@@ -39,7 +39,7 @@ python detect_from_video.py
 ```  
 Enable cuda with ```--cuda```  or see parameters with ```python detect_from_video.py -h```.
 
-### Running an attack on a single video file
+### Running an attack on video file
 
 This setup is for running any of our attack methodologies to create adversarial examples on one video file. 
 ```shell
@@ -54,9 +54,9 @@ python attack.py
 ```  
 Enable cuda with ```--cuda```  or see parameters with ```python attack.py -h```.
 
-### Running an attack on multiple video files
+### Running experiments on FaceForensic++ Dataset
 
-This setup is for running any of our attack methodologies to create adversarial examples on multiple video files. 
+This setup is for running any of our attack methodologies to create adversarial examples on multiple video files from FaceForensic++ Dataset. 
 ```shell
 python run_experiments.py
 -data <path to manipulated_test_sequences folder containing all videos generated using Deepfakes, Neuraltextures, Face2Face, FaceSwap >
