@@ -13,9 +13,9 @@ def main():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     p.add_argument('--data_dir', '-data', type=str, 
-        default="/data2/paarth/DeepFakeDataset/manipulated_sequences/") # dir containing face2face etc
+        default="/data2/DeepFakeDataset/manipulated_sequences/") # dir containing face2face etc
     p.add_argument('--dest_dir', '-dest', type=str, 
-        default="/data2/paarth/DeepFakeDataset/manipulated_test_sequences/")
+        default="/data2/DeepFakeDataset/manipulated_test_sequences/")
     
 
     args = p.parse_args()
