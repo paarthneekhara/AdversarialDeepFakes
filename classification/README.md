@@ -39,8 +39,9 @@ python detect_from_video.py
 ```  
 Enable cuda with ```--cuda```  or see parameters with ```python detect_from_video.py -h```.
 
-### Running an attack
+### Running an attack on a single video file
 
+This setup is for running any of our attack methodologies to create adversarial examples on one video file. 
 ```shell
 python attack.py
 -i <path to input video or folder of videos with extenstion '.mp4' or '.avi'>
@@ -48,10 +49,27 @@ python attack.py
 -mt <type of model, choose either xception or meso >
 -o <path to output folder, will contain output video(s) >
 -a <type of attack, choose from the following: robust, iterative_fgsm, black_box, black_box_robust >
--compress < if provided will save the adversarial video files in compressed MJPEG format > 
+--compress < if provided will save the adversarial video files in compressed MJPEG format > 
 
 ```  
 Enable cuda with ```--cuda```  or see parameters with ```python attack.py -h```.
+
+### Running an attack on multiple video files
+
+This setup is for running any of our attack methodologies to create adversarial examples on multiple video files. 
+```shell
+python run_experiments.py
+-data <path to manipulated_test_sequences folder containing all videos generated using Deepfakes, Neuraltextures, Face2Face, FaceSwap >
+-mdir <path to pre-trained model weights >
+-mtype <type of model, choose either xception or meso >
+-exp <path to experiment directory, will contain output video(s) gnerated from the experiment>
+-a <type of attack, choose from the following: robust, iterative_fgsm, black_box, black_box_robust >
+--faketype <type of facial manipulation, choose from the following: Deepfakes, Neuraltextures, Face2Face, FaceSwap >
+--compress < if provided will save the adversarial video files in compressed MJPEG format > 
+
+
+```  
+Enable cuda with ```--cuda```  or see parameters with ```python run_experiments.py -h```.
 
 # Requirements
 
