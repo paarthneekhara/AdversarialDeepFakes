@@ -73,7 +73,7 @@ Enable cuda with ```--cuda```  or see parameters with ```python run_experiments.
 We run the following script in order to aggregate statistics on attack success rate from the experiments.
 ```shell
 python aggregate_stats.py
--exp <path to experiment directory, will contain output video(s) gnerated from the experiment>
+-exp <path to experiment directory, contains video(s) gnerated from the experiment>
 ```  
 
 # Requirements
