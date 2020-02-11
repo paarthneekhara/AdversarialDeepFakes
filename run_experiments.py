@@ -1,6 +1,3 @@
-"""
-Author: Shehzeen Hussain
-"""
 
 import os, sys
 import argparse
