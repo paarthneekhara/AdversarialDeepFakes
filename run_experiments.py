@@ -32,13 +32,13 @@ def main():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     p.add_argument('--model_dir', '-mdir', type=str, 
-        default="/data2/paarth/faceforensics++_models_subset/face_detection/") #dir contains xception, meso
+        default="/data2/faceforensics++_models_subset/face_detection/") #dir contains xception, meso
     p.add_argument('--model_type', '-mtype', type=str, 
         default="xception") #dir contains all_c23.p etc
     p.add_argument('--data_dir', '-data', type=str, 
-        default="/data2/paarth/DeepFakeDataset/manipulated_test_sequences/") # dir containing face2face etc
+        default="/data2/DeepFakeDataset/manipulated_test_sequences/") # dir containing face2face etc
     p.add_argument('--exp_folder', '-exp', type=str, 
-        default="/data2/paarth/DFExperiments") # where sub directories will be created
+        default="/data2/DFExperiments") # where sub directories will be created
     p.add_argument('--compression_type', '-ctype', type=str, default="c23") #c23, c40 or raw
     p.add_argument('--num_videos', '-nv', type=int, default=None) #num videos
     p.add_argument('--end_frame', '-ef', type=int, default=None) #c23, c40 or raw
