@@ -1,9 +1,9 @@
-# FaceForensics++: Learning to Detect Manipulated Facial Images
+# Adversarial DeepFakes: Evaluating Vulnerability of Deepfake Detectors to Adversarial Examples
 
 ![Header](images/teaser.png)
 
 ## Overview
-FaceForensics++ is a forensics dataset consisting of 1000 original video sequences that have been manipulated with four automated face manipulation methods: Deepfakes, Face2Face, FaceSwap and NeuralTextures. The data has been sourced from 977 youtube videos and all videos contain a trackable mostly frontal face without occlusions which enables automated tampering methods to generate realistic forgeries. As we provide binary masks the data can be used for image and video classification as well as segmentation. In addition, we provide 1000 Deepfakes models to generate and augment new data.
+Deepfakes or facially manipulated videos, can be used maliciously to spread disinformation, harass individuals or defame famous personalities. Recently developed Deepfake detection methods rely on Convolutional Neural Network (CNN) based classifiers to distinguish AI-generated fake videos from real videos. In this work, we demonstrate that it is possible to bypass such detectors by adversarially modifying fake videos synthesized using existing Deepfake generation methods. We design adversarial examples for the FaceForensics++ dataset to fool Deepfake detectors. We build on top of the [FaceForensics++ codebase][https://github.com/ondyari/FaceForensics] for detectors.
 
 
 
