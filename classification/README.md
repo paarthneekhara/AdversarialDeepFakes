@@ -16,7 +16,7 @@ Once, you obtain the download link, please head to the [download section of Face
 IMPORTANT: To create the test split of this dataset on which our experiments have been performed, use the script ```create_test_data.py``` as follows:
 ```python create_test_data.py --data_dir <path to DeepFakeDataset/manipulated_sequences> --dest_dir <path to DeepFakeDataset/manipulated_test_sequences> ```
 
-Some sample fake videos have been uploaded here [GOOGLE DRIVE LINK]() incase, you want to try out the attacks ona few examples. 
+Some sample fake videos have been uploaded here [GOOGLE DRIVE LINK]() to try out the attacks on a few examples. 
 
 ## Victim Pre-trained Models
 
