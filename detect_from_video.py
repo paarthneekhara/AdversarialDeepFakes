@@ -1,5 +1,5 @@
 """
-Evaluates a folder of video files or a single file with a xception binary
+Evaluates a folder of video files or a single file with a xception and mesonet
 classification network.
 
 Usage:
@@ -7,8 +7,9 @@ python detect_from_video.py
     -i <folder with video files or path to video file>
     -m <path to model file>
     -o <path to output folder, will write one or multiple output videos there>
-
-Author: Andreas Rössler
+    
+Original: https://github.com/ondyari/FaceForensics/blob/master/classification/detect_from_video.py
+Adapted for mesonet as well.
 """
 import os, sys
 import argparse
