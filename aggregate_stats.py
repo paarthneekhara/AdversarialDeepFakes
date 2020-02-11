@@ -14,7 +14,7 @@ def main():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     p.add_argument('--exp_folder', '-exp', type=str, 
-        default="/data2/paarth/DFExperiments") # where sub directories will be created
+        default="/data2/DFExperiments") # where sub directories will be created
     
     args = p.parse_args()
     experiment_dir = args.exp_folder
