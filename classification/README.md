@@ -34,7 +34,7 @@ We use the the PyTorch implementation of [MesoNet](https://github.com/HongguLiu/
 python detect_from_video.py
 -i <path to input video or folder of videos with extenstion '.mp4' or '.avi'>
 -mi <path to pre-trained model weights >
--mt <type of model, choose either xception or mesonet >
+-mt <type of model, choose either xception or meso >
 -o <path to output folder, will contain output video(s) >
 ```  
 Enable cuda with ```--cuda```  or see parameters with ```python detect_from_video.py -h```.
@@ -45,10 +45,10 @@ Enable cuda with ```--cuda```  or see parameters with ```python detect_from_vide
 python attack.py
 -i <path to input video or folder of videos with extenstion '.mp4' or '.avi'>
 -mi <path to pre-trained model weights >
--mt <type of model, choose either xception or mesonet >
+-mt <type of model, choose either xception or meso >
 -o <path to output folder, will contain output video(s) >
 -a <type of attack, choose from the following: robust, iterative_fgsm, black_box, black_box_robust >
--compress < if provided save the adversarial video files in compressed MJPEG format > 
+-compress < if provided will save the adversarial video files in compressed MJPEG format > 
 
 ```  
 Enable cuda with ```--cuda```  or see parameters with ```python attack.py -h```.
