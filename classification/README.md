@@ -67,9 +67,14 @@ python run_experiments.py
 --faketype <type of facial manipulation, choose from the following: Deepfakes, Neuraltextures, Face2Face, FaceSwap >
 --compress < if provided will save the adversarial video files in compressed MJPEG format > 
 
-
 ```  
 Enable cuda with ```--cuda```  or see parameters with ```python run_experiments.py -h```.
+
+We run the following script in order to aggregate statistics on attack success rate from the experiments.
+```shell
+python aggregate_stats.py
+-exp <path to experiment directory, will contain output video(s) gnerated from the experiment>
+```  
 
 # Requirements
 
