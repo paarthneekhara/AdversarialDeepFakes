@@ -1,4 +1,4 @@
-# Adversarial DeepFakes
+# Adversarial Deepfakes
 
 Deepfakes or facially manipulated videos, can be used maliciously to spread disinformation, harass individuals or defame famous personalities. Recently developed Deepfake detection methods rely on Convolutional Neural Network (CNN) based classifiers to distinguish AI-generated fake videos from real videos. In this work, we demonstrate that it is possible to bypass such detectors by adversarially modifying fake videos synthesized using existing Deepfake generation methods. We design adversarial examples for the FaceForensics++ dataset and fool victim CNN detectors - XceptionNet ([FaceForensics++ codebase](https://github.com/ondyari/FaceForensics)) and [MesoNet](https://github.com/HongguLiu/MesoNet-Pytorch).
 
