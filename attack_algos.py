@@ -271,7 +271,6 @@ def black_box_attack(input_img, model, model_type,
             ]
 
         if "translation" in apply_transforms:
-            # reduced transforms for blackbox
             x_translate = random.randint(-20,20)
             y_translate = random.randint(-20,20)
             
