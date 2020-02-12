@@ -17,8 +17,8 @@ IMPORTANT: To create the test split of this dataset on which our experiments hav
 ```python create_test_data.py --data_dir <path to DeepFakeDataset/manipulated_sequences> --dest_dir <path to DeepFakeDataset/manipulated_test_sequences> ```
 
 ## Small subset to try out the attacks
-If you want to try out the attacks on a very small subset of this dataset, you download some fake videos from [this link]()
-Unzip the files inside `Data/` to have the following directory structure.
+If you want to try out the attacks on a very small subset of this dataset, create a directory `Data/` in the root folder,  download the zipped dataset from [this link](http://adversarialdeepfakes.github.io/dfsubset.zip) and save unzip inside `Data/` to have the following directory structure:
+
 ```
 Data/
   - DFWebsite/
@@ -59,7 +59,12 @@ python detect_from_video.py
 -mt <type of model, choose either xception or meso >
 -o  <path to output folder, will contain output video(s) >
 ```
-Enable cuda with ```--cuda```  or see parameters with ```python detect_from_video.py -h```.
+Enable cuda with ```--cuda```  or see parameters with ```python attack.py -h```.
+
+Example:
+```shell
+python detect_from_video.py -i Data/DFWebsite/Face2Face/c23/videos/183_253.mp4 -mi faceforensics++_models_subset/xception/all_c23.p -mt xception -o tempout/ --cuda
+```
 
 ### Running an attack on video file
 
@@ -74,7 +79,13 @@ python attack.py
 --compress < if provided will save the adversarial video files in compressed MJPEG format > 
 
 ```  
-Enable cuda with ```--cuda```  or see parameters with ```python attack.py -h```.
+
+Enable cuda with ```--cuda```  or see parameters with ```python detect_from_video.py -h```.
+
+Example:
+```shell
+python attack.py -i Data/DFWebsite/Face2Face/c23/videos/183_253.mp4 -mi faceforensics++_models_subset/xception/all_c23.p -mt xception -o temadv/ -a robust --cuda --compress
+```
 
 ### Running experiments on FaceForensic++ Dataset
 
@@ -97,3 +108,10 @@ We run the following script in order to aggregate statistics on attack success r
 python aggregate_stats.py
 -exp <path to experiment directory, contains video(s) gnerated from the experiment>
 ```  
+
+Example for running the experiments on the small subset provided:
+
+```shell
+python run_experiments.py -data Data/DFWebsite -mdir faceforensics++_models_subset -mtype xception -exp ExpTemp -a robust --faketype Face2Face --compress
+```
+
