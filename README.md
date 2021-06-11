@@ -2,6 +2,7 @@
 
 Deepfakes or facially manipulated videos, can be used maliciously to spread disinformation, harass individuals or defame famous personalities. Recently developed Deepfake detection methods rely on Convolutional Neural Network (CNN) based classifiers to distinguish AI-generated fake videos from real videos. In this work, we demonstrate that it is possible to bypass such detectors by adversarially modifying fake videos synthesized using existing Deepfake generation methods. We design adversarial examples for the FaceForensics++ dataset and fool victim CNN detectors - XceptionNet ([FaceForensics++ codebase](https://github.com/ondyari/FaceForensics)) and [MesoNet](https://github.com/HongguLiu/MesoNet-Pytorch).
 
+
 ## Setup Requirements
 
 The code is based on PyTorch and requires Python 3.6
@@ -114,4 +115,33 @@ Example for running the experiments on the small subset provided:
 ```shell
 python run_experiments.py -data Data/DFWebsite -mdir faceforensics++_models_subset -mtype xception -exp ExpTemp -a robust --faketype Face2Face --compress
 ```
+
+### Citing this work
+If you use Adversarial Deepfakes for academic research, you are highly encouraged to cite the following papers:
+
+1) https://openaccess.thecvf.com/content/WACV2021/html/Hussain_Adversarial_Deepfakes_Evaluating_Vulnerability_of_Deepfake_Detectors_to_Adversarial_Examples_WACV_2021_paper.html
+
+@InProceedings{Hussain_2021_WACV,
+    author    = {Hussain, Shehzeen and Neekhara, Paarth and Jere, Malhar and Koushanfar, Farinaz and McAuley, Julian},
+    title     = {Adversarial Deepfakes: Evaluating Vulnerability of Deepfake Detectors to Adversarial Examples},
+    booktitle = {Proceedings of the IEEE/CVF Winter Conference on Applications of Computer Vision (WACV)},
+    month     = {January},
+    year      = {2021},
+    pages     = {3348-3357}
+}
+
+2) https://dl.acm.org/doi/10.1145/3464307
+@article{10.1145/3464307,
+author = {Hussain, Shehzeen and Neekhara, Paarth and Dolhansky, Brian and Bitton, Joanna and Canton Ferrer, Cristian and McAuley, Julian and Koushanfar, Farinaz},
+title = {Exposing Vulnerabilities of Deepfake Detection Systems with Robust Attacks},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+volume = {0},
+number = {ja},
+issn = {2692-1626},
+url = {https://doi.org/10.1145/3464307},
+doi = {10.1145/3464307},
+journal = {Digital Threats: Research and Practice}
+}
+
 
