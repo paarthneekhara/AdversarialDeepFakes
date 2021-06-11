@@ -118,9 +118,9 @@ python run_experiments.py -data Data/DFWebsite -mdir faceforensics++_models_subs
 
 ### Citing this work
 If you use Adversarial Deepfakes for academic research, you are highly encouraged to cite the following papers:
-
 1) https://openaccess.thecvf.com/content/WACV2021/html/Hussain_Adversarial_Deepfakes_Evaluating_Vulnerability_of_Deepfake_Detectors_to_Adversarial_Examples_WACV_2021_paper.html
 
+```
 @InProceedings{Hussain_2021_WACV,
     author    = {Hussain, Shehzeen and Neekhara, Paarth and Jere, Malhar and Koushanfar, Farinaz and McAuley, Julian},
     title     = {Adversarial Deepfakes: Evaluating Vulnerability of Deepfake Detectors to Adversarial Examples},
@@ -129,8 +129,10 @@ If you use Adversarial Deepfakes for academic research, you are highly encourage
     year      = {2021},
     pages     = {3348-3357}
 }
-
+```
 2) https://dl.acm.org/doi/10.1145/3464307
+
+```
 @article{10.1145/3464307,
 author = {Hussain, Shehzeen and Neekhara, Paarth and Dolhansky, Brian and Bitton, Joanna and Canton Ferrer, Cristian and McAuley, Julian and Koushanfar, Farinaz},
 title = {Exposing Vulnerabilities of Deepfake Detection Systems with Robust Attacks},
@@ -143,5 +145,5 @@ url = {https://doi.org/10.1145/3464307},
 doi = {10.1145/3464307},
 journal = {Digital Threats: Research and Practice}
 }
-
+```
 
