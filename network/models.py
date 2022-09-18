@@ -11,6 +11,7 @@ import pretrainedmodels
 import torch.nn as nn
 import torch.nn.functional as F
 from network.xception import xception
+from network.classifier import Meso4
 import math
 import torchvision
 

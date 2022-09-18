@@ -142,15 +142,17 @@ def test_full_image_network(video_path, model_path, model_type, output_path,
     face_detector = dlib.get_frontal_face_detector()
 
     # Load model
-    # model, *_ = model_selection(modelname='xception', num_out_classes=2)
     if model_path is not None:
-        if not cuda:
-            model = torch.load(model_path, map_location = "cpu")
-        else:
+        if model_type == 'xception':
             model = torch.load(model_path)
+        elif model_type == 'meso':
+            model, *_ = model_selection(modelname=model_type, num_out_classes=2)
+            model.load_state_dict(torch.load(model_path))
         print('Model found in {}'.format(model_path))
     else:
         print('No model found, initializing random model.')
+        model, *_ = model_selection(modelname=model_type, num_out_classes=2)
+
     if cuda:
         print("Converting mode to cuda")
         model = model.cuda()
